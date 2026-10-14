@@ -8,6 +8,10 @@
 
 ## 1. 共通仕様
 
+### 運用用ヘルスチェック（ベースライン実装）
+
+`GET /api/v1/health`は認証不要、200 `{"status":"ok"}`と`Cache-Control: no-store`を返す。APIプロセスの応答のみを確認し、DB・認証基盤への疎通は判定しない。業務データ・環境情報を返さない。以下の管理者認証・冪等性・DBセッションの共通仕様は業務APIに適用し、このヘルスチェックには適用しない。業務API（A01〜A15、A11欠番）は未実装。
+
 Base URL：`https://<function-host>.azurewebsites.net/api/v1`。以下は相対パス。HTTPS、UTF-8、JSON、camelCase。全業務APIは管理者のみ。ログイン・ログアウトはMSALで行い、独自ログインAPIは作らない。
 
 ### 認証・データ形式

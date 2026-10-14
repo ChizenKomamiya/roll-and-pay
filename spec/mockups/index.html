@@ -108,6 +108,9 @@
       <a class="back" href="#home">← ホーム</a><p class="eyebrow">LOSS HISTORY</p><h2>誰が、いくら負けた？</h2><p class="muted">一回ごとの負け額を振り返ります。</p>
       <div class="section-heading"><h3>ゲーム履歴</h3><span>新しい順・仮案</span></div>
       <a class="history-card" href="#history"><div><span class="muted">2026.10.14 · 19:30</span><strong>ゆうの負け額</strong><span>会計 13,800円 · 4人</span></div><div class="history-right"><strong>1,800円</strong><span>詳細 →</span></div></a>
+      <a class="history-card" href="#history-aki"><div><span class="muted">2026.10.10 · 20:00</span><strong>あきの負け額</strong><span>会計 23,800円 · 6人</span></div><div class="history-right"><strong>5,800円</strong><span>詳細 →</span></div></a>
+      <a class="history-card" href="#history-haru"><div><span class="muted">2026.10.03 · 19:00</span><strong>はるの負け額</strong><span>会計 15,200円 · 4人</span></div><div class="history-right"><strong>3,200円</strong><span>詳細 →</span></div></a>
+      <a class="history-card" href="#history-rin"><div><span class="muted">2026.09.27 · 18:30</span><strong>りんの負け額</strong><span>会計 12,000円 · 4人</span></div><div class="history-right"><strong>0円</strong><span>詳細 →</span></div></a>
       <p class="hint">表示額は累積に加算する負け額です。</p>
       <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10：ホームにあったゲーム履歴をこの画面へ移しました。日時・敗者・負け額を中心に表示し、選択すると個別の詳細を開きます。初回は「まだ履歴がありません」と表示する想定です。</p></details>
     </section>
@@ -116,6 +119,63 @@
       <div class="result-card"><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>敗者 ゆう · 負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき</span><strong>3,000円</strong></div><div class="pay-row"><span>はる</span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん</span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.10.14 · 19:35</p></div>
       <a href="#history-delete" class="button danger">この履歴を削除</a>
       <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10・F14：誰が・いつ・いくら負けたかと各自の負担額を表示します。サイコロの記録は画面に掲載しません。削除は確認画面を経て行い、削除対象の負け額を累積からも除外します。金額訂正や任意の振り直しは追加していません。</p></details>
+    </section>
+    <section id="history-aki" class="screen">
+      <a class="back" href="#history-list">← 負け額の履歴</a><p class="eyebrow">LOSS HISTORY / DETAIL</p><h2>あきの負け額の記録</h2><p class="muted">2026.10.10 · 20:00 / 6人</p>
+      <div class="result-card"><div class="result-top"><span>会計総額</span><strong>23,800<small>円</small></strong></div><div class="loss-highlight"><span>敗者 あき · 負け額</span><strong>5,800<small>円</small></strong></div><div class="pay-row accent"><span>あき <small>敗者</small></span><strong>8,800円</strong></div><div class="pay-row"><span>はる</span><strong>3,000円</strong></div><div class="pay-row"><span>ゆう</span><strong>3,000円</strong></div><div class="pay-row"><span>りん</span><strong>3,000円</strong></div><div class="pay-row"><span>そら</span><strong>3,000円</strong></div><div class="pay-row"><span>なつ</span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.10.10 · 20:35</p></div>
+
+      <a href="#history-aki-delete" class="button danger">この履歴を削除</a>
+      <p class="hint">仮データによる履歴詳細の表示例です。</p>
+    </section>
+    <section id="history-aki-delete" class="screen">
+      <a class="back" href="#history-aki">← 履歴詳細</a><p class="eyebrow">DELETE HISTORY</p><h2>この履歴を削除しますか？</h2>
+      <div class="card"><p class="muted">2026.10.10 · 20:00 / 6人</p><div class="pay-row"><span>あきの負け額</span><strong>5,800円</strong></div><p>会計総額：23,800円</p></div>
+      <div class="notice"><strong>累積負け額からも除外します</strong><p>あきの累積負け額から5,800円を除外します。</p></div>
+      <a href="#history-aki-deleted" class="button danger">削除する</a><a href="#history-aki" class="button secondary">キャンセル</a>
+      <p class="hint">モックのリンクです。実際の削除は行いません。</p>
+    </section>
+    <section id="history-aki-deleted" class="screen">
+      <p class="eyebrow">LOSS HISTORY</p><h2>履歴を削除しました。</h2><div class="card"><p>2026.10.10のあきの記録を削除した後の表示例です。</p></div>
+      <a href="#history-list" class="button secondary">履歴一覧へ →</a>
+      <div class="annotation"><p>実データは変更しません。履歴一覧とホームは削除前の固定サンプルを表示します。</p></div>
+    </section>
+    <section id="history-haru" class="screen">
+      <a class="back" href="#history-list">← 負け額の履歴</a><p class="eyebrow">LOSS HISTORY / DETAIL</p><h2>はるの負け額の記録</h2><p class="muted">2026.10.03 · 19:00 / 4人</p>
+      <div class="result-card"><div class="result-top"><span>会計総額</span><strong>15,200<small>円</small></strong></div><div class="loss-highlight"><span>敗者 はる · 負け額</span><strong>3,200<small>円</small></strong></div><div class="pay-row"><span>あき</span><strong>3,000円</strong></div><div class="pay-row accent"><span>はる <small>敗者</small></span><strong>6,200円</strong></div><div class="pay-row"><span>ゆう</span><strong>3,000円</strong></div><div class="pay-row"><span>りん</span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.10.03 · 19:35</p></div>
+
+      <a href="#history-haru-delete" class="button danger">この履歴を削除</a>
+      <p class="hint">仮データによる履歴詳細の表示例です。</p>
+    </section>
+    <section id="history-haru-delete" class="screen">
+      <a class="back" href="#history-haru">← 履歴詳細</a><p class="eyebrow">DELETE HISTORY</p><h2>この履歴を削除しますか？</h2>
+      <div class="card"><p class="muted">2026.10.03 · 19:00 / 4人</p><div class="pay-row"><span>はるの負け額</span><strong>3,200円</strong></div><p>会計総額：15,200円</p></div>
+      <div class="notice"><strong>累積負け額からも除外します</strong><p>はるの累積負け額から3,200円を除外します。</p></div>
+      <a href="#history-haru-deleted" class="button danger">削除する</a><a href="#history-haru" class="button secondary">キャンセル</a>
+      <p class="hint">モックのリンクです。実際の削除は行いません。</p>
+    </section>
+    <section id="history-haru-deleted" class="screen">
+      <p class="eyebrow">LOSS HISTORY</p><h2>履歴を削除しました。</h2><div class="card"><p>2026.10.03のはるの記録を削除した後の表示例です。</p></div>
+      <a href="#history-list" class="button secondary">履歴一覧へ →</a>
+      <div class="annotation"><p>実データは変更しません。履歴一覧とホームは削除前の固定サンプルを表示します。</p></div>
+    </section>
+    <section id="history-rin" class="screen">
+      <a class="back" href="#history-list">← 負け額の履歴</a><p class="eyebrow">LOSS HISTORY / DETAIL</p><h2>りんの負け額の記録</h2><p class="muted">2026.09.27 · 18:30 / 4人</p>
+      <div class="result-card"><div class="result-top"><span>会計総額</span><strong>12,000<small>円</small></strong></div><div class="loss-highlight"><span>敗者 りん · 負け額</span><strong>0<small>円</small></strong></div><div class="pay-row"><span>あき</span><strong>3,000円</strong></div><div class="pay-row"><span>はる</span><strong>3,000円</strong></div><div class="pay-row"><span>ゆう</span><strong>3,000円</strong></div><div class="pay-row accent"><span>りん <small>敗者</small></span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.09.27 · 18:35</p></div>
+      <p class="hint">会計が千円単位で割り切れたため、負け額は0円です。</p>
+      <a href="#history-rin-delete" class="button danger">この履歴を削除</a>
+      <p class="hint">仮データによる履歴詳細の表示例です。</p>
+    </section>
+    <section id="history-rin-delete" class="screen">
+      <a class="back" href="#history-rin">← 履歴詳細</a><p class="eyebrow">DELETE HISTORY</p><h2>この履歴を削除しますか？</h2>
+      <div class="card"><p class="muted">2026.09.27 · 18:30 / 4人</p><div class="pay-row"><span>りんの負け額</span><strong>0円</strong></div><p>会計総額：12,000円</p></div>
+      <div class="notice"><strong>累積負け額からも除外します</strong><p>りんの累積負け額から0円を除外します。</p></div>
+      <a href="#history-rin-deleted" class="button danger">削除する</a><a href="#history-rin" class="button secondary">キャンセル</a>
+      <p class="hint">モックのリンクです。実際の削除は行いません。</p>
+    </section>
+    <section id="history-rin-deleted" class="screen">
+      <p class="eyebrow">LOSS HISTORY</p><h2>履歴を削除しました。</h2><div class="card"><p>2026.09.27のりんの記録を削除した後の表示例です。</p></div>
+      <a href="#history-list" class="button secondary">履歴一覧へ →</a>
+      <div class="annotation"><p>実データは変更しません。履歴一覧とホームは削除前の固定サンプルを表示します。</p></div>
     </section>
     <section id="history-delete" class="screen">
       <a class="back" href="#history">← 履歴詳細</a><p class="eyebrow">DELETE HISTORY</p><h2>この履歴を削除しますか？</h2>

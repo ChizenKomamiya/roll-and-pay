@@ -3,3 +3,4 @@
 @media(max-width:850px){.guide{position:static;width:100%;padding:20px 20px 12px;border-right:0;border-bottom:1px solid #d7dfd4}.guide .eyebrow,.guide h1,.guide>p,.guide-note{display:none}.brand{font-size:19px}.brand-icon{font-size:26px}nav{display:flex;gap:5px;overflow-x:auto;margin-top:12px}nav a{flex-shrink:0;gap:6px;padding:8px;font-size:10px}nav a span{font-size:11px}main{margin-left:0;padding:18px 12px}.phone{min-height:740px}.preview-label{font-size:9px}}
 @media(max-width:380px){.screen{padding:20px 16px}h2{font-size:24px}.history-card{font-size:10px}.history-card strong{font-size:11px}.app-header{padding:0 16px}.phone{border-radius:20px}.pay-row{padding:14px}.pay-row small{margin-left:2px}}
 .danger{background:#fff7f3;color:#a14431;border-color:#dfb5a9}.danger:hover{background:#ffebe4}
+.history-card + .history-card{margin-top:12px}

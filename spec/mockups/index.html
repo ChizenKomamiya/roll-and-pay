@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roll &amp; Pay | 画面モックアップ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="guide">
+  <a class="brand" href="#home"><span class="brand-icon">⚄</span> Roll &amp; Pay</a>
+  <p class="eyebrow">BASIC DESIGN / 01</p>
+  <h1>画面モックアップ</h1>
+  <p>一台のスマートフォンで、<br>今日の端数を決める。</p>
+  <nav aria-label="画面一覧">
+    <a href="#login">01 <span>ログイン</span></a>
+    <a href="#home">02 <span>ホーム／履歴</span></a>
+    <a href="#participants">03 <span>参加者選択</span></a>
+    <a href="#dice">04 <span>サイコロ</span></a>
+    <a href="#payment">05 <span>金額確認／結果</span></a>
+    <a href="#history">06 <span>履歴詳細</span></a>
+  </nav>
+  <div class="guide-note"><strong>設計確認用のサンプル</strong><p>リンクで画面と状態を切り替えます。名前・日時・金額は仮データです。認証、抽選、計算、保存は実行しません。</p></div>
+</aside>
+<main>
+  <div class="preview-label"><span>HTML MOCKUP</span><span>スマートフォン優先</span></div>
+  <div class="phone">
+    <header class="app-header"><a href="#home">⚄ <strong>Roll &amp; Pay</strong></a><span class="badge">MOCK</span></header>
+    <section id="login" class="screen">
+      <div class="login-hero"><div class="hero-dice">⚄</div><p class="eyebrow">LET THE DICE DECIDE.</p><h2>端数は、<br>サイコロにおまかせ。</h2><p>小銭のやり取りをなくして、<br>食事のあとの会計をすっきり。</p></div>
+      <div class="card"><h3>管理者としてログイン</h3><p class="muted">参加者のアカウントは不要です。<br>ログインした一台をみんなで使います。</p><a class="button primary" href="#home"><span class="ms-icon" aria-hidden="true">▦</span> Microsoftでログイン</a></div>
+      <p class="hint">管理者本人のアカウントで利用します。</p>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S01 / F01：本番ではMicrosoft Entra IDで認証し、管理者の利用権限を確認してホームに進みます。ログイン失敗・権限不足はここに案内を表示する想定です。</p></details>
+    </section>
+    <section id="home" class="screen">
+      <div class="title-row"><div><p class="eyebrow">GOOD FOOD, FAIR PLAY.</p><h2>今日も、おつかれさま。</h2></div></div>
+      <p class="muted">集まったみんなで、端数の運だめし。</p>
+      <a class="start-card" href="#participants"><span class="start-dice">⚄</span><span><strong>新しいゲーム</strong><small>参加者を選んではじめる</small></span><span>→</span></a>
+      <div class="section-heading"><h3>累積負け額</h3><span>これまでの合計</span></div>
+      <div class="card totals"><div><span>あき</span><strong>5,800<small>円</small></strong></div><div><span>はる</span><strong>3,200<small>円</small></strong></div><div><span>ゆう</span><strong>1,800<small>円</small></strong></div><div><span>りん</span><strong>0<small>円</small></strong></div></div>
+      <div class="section-heading"><h3>ゲーム履歴</h3><span>新しい順・仮案</span></div>
+      <a class="history-card" href="#history"><div><span class="muted">2026.10.14 · 19:30</span><strong>あき・はる・ゆう・りん</strong><span>会計 13,800円 · 4人</span></div><div class="history-right"><span class="tag">ゆうが負担</span><strong>+1,800円</strong><span>詳細 →</span></div></a>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S02 / F03・F10・F11：新規ゲームは参加者選択へ、履歴は詳細へ進みます。累積値はサンプルです。初回は累積額を0円、履歴を「まだ履歴がありません」と表示する想定です。表示位置と並び順は仮案です。</p></details>
+    </section>
+    <section id="participants" class="screen">
+      <a class="back" href="#home">← ホーム</a><p class="eyebrow">STEP 01 / MEMBERS</p><h2>今日は、だれと？</h2><p class="muted">参加する人にチェックを入れてください。</p>
+      <form class="members" onsubmit="return false">
+        <label><input type="checkbox" checked><span class="avatar">あ</span><strong>あき</strong></label>
+        <label><input type="checkbox" checked><span class="avatar">は</span><strong>はる</strong></label>
+        <label><input type="checkbox" checked><span class="avatar">ゆ</span><strong>ゆう</strong></label>
+        <label><input type="checkbox" checked><span class="avatar">り</span><strong>りん</strong></label>
+        <label><input type="checkbox"><span class="avatar">そ</span><strong>そら</strong></label>
+        <label><input type="checkbox"><span class="avatar">な</span><strong>なつ</strong></label>
+      </form>
+      <p class="hint">選択例：4人 · 名前は仮の固定リストです。</p><a class="button primary" href="#dice">このメンバーで始める →</a>
+      <details class="annotation" open><summary>画面・操作の説明</summary><p>S03 / F02・F03：チェック欄は見た目の確認用です。次の画面は固定の4人で表示します。本番では選択した参加者でゲームを開始します。参加人数の正式な上限と名前の管理方法は未決定です。</p></details>
+    </section>
+    <section id="dice" class="screen">
+      <p class="eyebrow">STEP 02 / ROLL</p><h2>さあ、運だめし。</h2><p class="muted">最も小さい出目の人が端数を負担します。</p>
+      <div class="status"><span class="status-dot"></span><strong>まだ振っていません</strong><span>0 / 4人</span></div>
+      <div class="dice-grid"><a href="#dice-waiting" class="dice-card"><span>あき</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>はる</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>ゆう</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>りん</span><span class="die unknown">?</span><small>タップして振る</small></a></div>
+      <a href="#dice-rolling" class="button primary">全員まとめて振る</a><p class="hint">各自で振るときは、自分のサイコロをタップ。</p>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S04 / F04〜F06・F13：一括と個別の操作を同じ画面に置く案です。サイコロはCSSによる表示例で、本番の3Dアニメーションは未実装です。個別操作のリンクはいずれも同じ操作待ちの例に進みます。</p></details>
+    </section>
+    <section id="dice-rolling" class="screen">
+      <p class="eyebrow">STEP 02 / ROLL</p><h2>サイコロを振っています。</h2><div class="status"><span class="status-dot"></span><strong>抽選中</strong><span>操作を停止</span></div>
+      <div class="dice-grid"><div class="dice-card"><span>あき</span><span class="die tilted">⚃</span></div><div class="dice-card"><span>はる</span><span class="die tilted">⚅</span></div><div class="dice-card"><span>ゆう</span><span class="die tilted">⚁</span></div><div class="dice-card"><span>りん</span><span class="die tilted">⚄</span></div></div>
+      <button class="button" disabled>抽選結果を待っています</button><div class="annotation"><p>状態表示の例です。本番では結果の取得とアニメーションが完了したら次の状態に進みます。</p><a href="#dice-tie">同点の例を見る →</a> / <a href="#dice-final">敗者確定の例を見る →</a></div>
+    </section>
+    <section id="dice-waiting" class="screen">
+      <p class="eyebrow">STEP 02 / ROLL</p><h2>あと3人、どうぞ。</h2><div class="status"><span class="status-dot"></span><strong>他の人の操作待ち</strong><span>1 / 4人</span></div>
+      <div class="dice-grid"><div class="dice-card"><span>あき</span><span class="die">⚃</span><small>出目 4 · 確定</small></div><a href="#dice-final" class="dice-card"><span>はる</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-final" class="dice-card"><span>ゆう</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-final" class="dice-card"><span>りん</span><span class="die unknown">?</span><small>タップして振る</small></a></div>
+      <div class="annotation"><p>全員が振り終わってから敗者を判定します。リンクは全員の抽選が完了した例へ進みます。個別操作の途中で一括ボタンを使えるかは未決定のため、この例では掲載していません。</p><a href="#dice">最初の状態へ戻る →</a></div>
+    </section>
+    <section id="dice-tie" class="screen">
+      <p class="eyebrow">STEP 02 / ROLL</p><h2>同点！ もう一度。</h2><div class="notice"><strong>最小の出目が2人</strong><p>あき・ゆうが出目1。<br>参加者全員で振り直します。</p></div>
+      <div class="dice-grid"><div class="dice-card"><span>あき</span><span class="die">⚀</span><small>出目 1</small></div><div class="dice-card"><span>はる</span><span class="die">⚅</span><small>出目 6</small></div><div class="dice-card"><span>ゆう</span><span class="die">⚀</span><small>出目 1</small></div><div class="dice-card"><span>りん</span><span class="die">⚄</span><small>出目 5</small></div></div>
+      <a href="#dice-reroll" class="button primary">全員で振り直す →</a><p class="hint">前の出目にかかわらず、全員が敗者の候補です。</p>
+    </section>
+    <section id="dice-reroll" class="screen">
+      <p class="eyebrow">STEP 02 / ROUND 02</p><h2>全員、もう一度。</h2><div class="status"><strong>振り直し・操作待ち</strong><span>0 / 4人</span></div>
+      <div class="dice-grid"><a href="#dice-waiting" class="dice-card"><span>あき</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>はる</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>ゆう</span><span class="die unknown">?</span><small>タップして振る</small></a><a href="#dice-waiting" class="dice-card"><span>りん</span><span class="die unknown">?</span><small>タップして振る</small></a></div>
+      <a href="#dice-final" class="button primary">全員まとめて振る</a><p class="hint">このリンクは2回目の敗者確定例に進みます。</p>
+    </section>
+    <section id="dice-final" class="screen">
+      <p class="eyebrow">STEP 02 / DECIDED</p><h2>今日の端数は、ゆう。</h2><div class="notice"><strong>ゆうが敗者に確定しました</strong><p>会計総額を入力して、負担額を確認しましょう。</p></div>
+      <div class="dice-grid"><div class="dice-card"><span>あき</span><span class="die">⚃</span><small>出目 4</small></div><div class="dice-card"><span>はる</span><span class="die">⚅</span><small>出目 6</small></div><div class="dice-card loser"><span>ゆう <em>敗者</em></span><span class="die">⚁</span><small>出目 2</small></div><div class="dice-card"><span>りん</span><span class="die">⚄</span><small>出目 5</small></div></div>
+      <a href="#payment" class="button primary">会計総額を入力 →</a><p class="hint">敗者確定後は振り直せません。</p>
+    </section>
+    <section id="payment" class="screen">
+      <p class="eyebrow">STEP 03 / PAYMENT</p><h2>会計を、すっきり。</h2><p class="muted">敗者はゆう。会計総額を入力してください。</p>
+      <form class="card" onsubmit="return false"><label class="field-label" for="total">会計総額</label><div class="money-input"><input id="total" type="text" inputmode="numeric" value="13800" aria-describedby="amount-note"><span>円</span></div><p id="amount-note" class="hint">入力例：13,800円 / 4人</p></form>
+      <a href="#result" class="button primary">負担額を確認する →</a>
+      <details class="annotation" open><summary>画面・操作の説明</summary><p>S05 / F07・F08：本番では整数円を検証し、負担額を計算します。このモックは入力値を計算に使わず、13,800円の固定例に進みます。0円・金額上限・少額会計の扱いは未決定です。</p></details>
+    </section>
+    <section id="result" class="screen">
+      <p class="eyebrow">STEP 03 / CHECK</p><h2>負担額を確認。</h2><p class="muted">まだ保存されていません。</p>
+      <div class="result-card"><div class="result-top"><span>会計総額 · 4人</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>ゆうの負け額</span><strong>1,800<small>円</small></strong><small>累積負け額に加算する金額</small></div><div class="pay-row"><span>あき <small>出目4</small></span><strong>3,000円</strong></div><div class="pay-row"><span>はる <small>出目6</small></span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>出目2 · 敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん <small>出目5</small></span><strong>3,000円</strong></div><p class="settlement">あき・はる・りんは、ゆうに各3,000円を渡します。ゆうは9,000円を受け取り、会計13,800円をまとめて支払います。</p></div>
+      <a href="#saved" class="button primary">この結果を保存する</a><a href="#payment" class="button secondary">会計総額を修正</a><p class="hint">基準負担額3,000円 × 4人 ＋ 負け額1,800円</p>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S05 / F08・F09：保存前の確認画面です。保存ボタンは保存完了の表示例へ進みます。保存処理は実行しません。通信失敗時は入力値と結果を保持して案内し、再試行で重複保存しない設計とします。</p></details>
+    </section>
+    <section id="saved" class="screen">
+      <div class="saved-heading"><span>✓ 保存しました</span><a href="#home">ホーム →</a></div>
+      <div class="share-card"><p class="eyebrow">ROLL &amp; PAY / RESULT</p><h2>今日の端数は、ゆう。</h2><p class="muted">2026.10.14 · 19:30 / 4人</p><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>ゆうの負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき <small>出目4</small></span><strong>3,000円</strong></div><div class="pay-row"><span>はる <small>出目6</small></span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>出目2 · 敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん <small>出目5</small></span><strong>3,000円</strong></div><p class="settlement">他の3人 → ゆうに各3,000円<br>ゆうが会計をまとめて支払います。</p></div>
+      <p class="hint">結果部分をスクリーンショットで共有できます。</p><a href="#history" class="button secondary">履歴詳細を見る →</a>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S05 / F09・F12：保存完了後の共有用表示です。実データは保存していません。画像保存・共有ボタンの採用は未決定です。</p></details>
+    </section>
+    <section id="history" class="screen">
+      <a class="back" href="#home">← ホーム／履歴</a><p class="eyebrow">GAME HISTORY</p><h2>ゲームの記録</h2><p class="muted">2026.10.14 · 19:30 / 4人</p>
+      <div class="result-card"><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>敗者 ゆう · 負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき</span><strong>3,000円</strong></div><div class="pay-row"><span>はる</span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん</span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.10.14 · 19:35</p></div>
+      <div class="section-heading"><h3>サイコロの記録</h3><span>全2回</span></div><div class="card"><div class="round-title"><strong>1回目</strong><span class="tag">同点 → 全員再抽選</span></div><p>あき 1 ／ はる 6 ／ ゆう 1 ／ りん 5</p><hr><div class="round-title"><strong>2回目</strong><span class="tag">ゆうに確定</span></div><p>あき 4 ／ はる 6 ／ ゆう 2 ／ りん 5</p></div>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10：同点による再抽選を含めて記録を表示します。ゲーム当時の参加者名を使う想定です。保存済み金額の訂正・履歴削除は未決定のため、操作ボタンは掲載していません。</p></details>
+    </section>
+  </div>
+  <footer class="preview-footer">画面の説明は各画面下部に掲載 · サイコロの各状態もリンクで確認できます</footer>
+</main>
+<script>
+function showScreen() {
+  const id = location.hash.slice(1) || 'login';
+  const target = document.getElementById(id);
+  const active = target && target.classList.contains('screen') ? id : 'login';
+  document.querySelectorAll('.screen').forEach(el => { el.hidden = el.id !== active; });
+  const group = active.startsWith('dice') ? 'dice' : ['result','saved'].includes(active) ? 'payment' : active;
+  document.querySelectorAll('nav a').forEach(el => { if (el.hash === '#' + group) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
+  document.title = 'Roll & Pay | ' + document.querySelector('#' + active + ' h2').textContent;
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', showScreen);
+showScreen();
+</script>
+</body>
+</html>

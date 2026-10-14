@@ -14,11 +14,11 @@
   <p>一台のスマートフォンで、<br>今日の端数を決める。</p>
   <nav aria-label="画面一覧">
     <a href="#login">01 <span>ログイン</span></a>
-    <a href="#home">02 <span>ホーム／履歴</span></a>
+    <a href="#home">02 <span>ホーム</span></a>
     <a href="#participants">03 <span>参加者選択</span></a>
     <a href="#dice">04 <span>サイコロ</span></a>
     <a href="#payment">05 <span>金額確認／結果</span></a>
-    <a href="#history">06 <span>履歴詳細</span></a>
+    <a href="#history-list">06 <span>負け額の履歴</span></a>
   </nav>
   <div class="guide-note"><strong>設計確認用のサンプル</strong><p>リンクで画面と状態を切り替えます。名前・日時・金額は仮データです。認証、抽選、計算、保存は実行しません。</p></div>
 </aside>
@@ -38,9 +38,8 @@
       <a class="start-card" href="#participants"><span class="start-dice">⚄</span><span><strong>新しいゲーム</strong><small>参加者を選んではじめる</small></span><span>→</span></a>
       <div class="section-heading"><h3>累積負け額</h3><span>これまでの合計</span></div>
       <div class="card totals"><div><span>あき</span><strong>5,800<small>円</small></strong></div><div><span>はる</span><strong>3,200<small>円</small></strong></div><div><span>ゆう</span><strong>1,800<small>円</small></strong></div><div><span>りん</span><strong>0<small>円</small></strong></div></div>
-      <div class="section-heading"><h3>ゲーム履歴</h3><span>新しい順・仮案</span></div>
-      <a class="history-card" href="#history"><div><span class="muted">2026.10.14 · 19:30</span><strong>あき・はる・ゆう・りん</strong><span>会計 13,800円 · 4人</span></div><div class="history-right"><span class="tag">ゆうが負担</span><strong>+1,800円</strong><span>詳細 →</span></div></a>
-      <details class="annotation"><summary>画面・操作の説明</summary><p>S02 / F03・F10・F11：新規ゲームは参加者選択へ、履歴は詳細へ進みます。累積値はサンプルです。初回は累積額を0円、履歴を「まだ履歴がありません」と表示する想定です。表示位置と並び順は仮案です。</p></details>
+      <a class="button secondary" href="#history-list">負け額の履歴を見る →</a>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S02 / F03・F11：ホームには累積負け額と新規ゲームの入口を表示し、ゲーム履歴は別画面にまとめます。累積値はサンプルです。初回は累積額を0円と表示する想定です。</p></details>
     </section>
     <section id="participants" class="screen">
       <a class="back" href="#home">← ホーム</a><p class="eyebrow">STEP 01 / MEMBERS</p><h2>今日は、だれと？</h2><p class="muted">参加する人にチェックを入れてください。</p>
@@ -105,11 +104,30 @@
       <p class="hint">結果部分をスクリーンショットで共有できます。</p><a href="#history" class="button secondary">履歴詳細を見る →</a>
       <details class="annotation"><summary>画面・操作の説明</summary><p>S05 / F09・F12：保存完了後の共有用表示です。実データは保存していません。画像保存・共有ボタンの採用は未決定です。</p></details>
     </section>
+    <section id="history-list" class="screen">
+      <a class="back" href="#home">← ホーム</a><p class="eyebrow">LOSS HISTORY</p><h2>誰が、いくら負けた？</h2><p class="muted">一回ごとの負け額を振り返ります。</p>
+      <div class="section-heading"><h3>ゲーム履歴</h3><span>新しい順・仮案</span></div>
+      <a class="history-card" href="#history"><div><span class="muted">2026.10.14 · 19:30</span><strong>ゆうの負け額</strong><span>会計 13,800円 · 4人</span></div><div class="history-right"><strong>1,800円</strong><span>詳細 →</span></div></a>
+      <p class="hint">表示額は累積に加算する負け額です。</p>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10：ホームにあったゲーム履歴をこの画面へ移しました。日時・敗者・負け額を中心に表示し、選択すると個別の詳細を開きます。初回は「まだ履歴がありません」と表示する想定です。</p></details>
+    </section>
     <section id="history" class="screen">
-      <a class="back" href="#home">← ホーム／履歴</a><p class="eyebrow">GAME HISTORY</p><h2>ゲームの記録</h2><p class="muted">2026.10.14 · 19:30 / 4人</p>
+      <a class="back" href="#history-list">← 負け額の履歴</a><p class="eyebrow">LOSS HISTORY / DETAIL</p><h2>ゆうの負け額の記録</h2><p class="muted">2026.10.14 · 19:30 / 4人</p>
       <div class="result-card"><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>敗者 ゆう · 負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき</span><strong>3,000円</strong></div><div class="pay-row"><span>はる</span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん</span><strong>3,000円</strong></div><p class="settlement">千円単位の基準負担額：3,000円<br>金額登録：2026.10.14 · 19:35</p></div>
-      <div class="section-heading"><h3>サイコロの記録</h3><span>全2回</span></div><div class="card"><div class="round-title"><strong>1回目</strong><span class="tag">同点 → 全員再抽選</span></div><p>あき 1 ／ はる 6 ／ ゆう 1 ／ りん 5</p><hr><div class="round-title"><strong>2回目</strong><span class="tag">ゆうに確定</span></div><p>あき 4 ／ はる 6 ／ ゆう 2 ／ りん 5</p></div>
-      <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10：同点による再抽選を含めて記録を表示します。ゲーム当時の参加者名を使う想定です。保存済み金額の訂正・履歴削除は未決定のため、操作ボタンは掲載していません。</p></details>
+      <a href="#history-delete" class="button danger">この履歴を削除</a>
+      <details class="annotation"><summary>画面・操作の説明</summary><p>S06 / F10・F14：誰が・いつ・いくら負けたかと各自の負担額を表示します。サイコロの記録は画面に掲載しません。削除は確認画面を経て行い、削除対象の負け額を累積からも除外します。金額訂正や任意の振り直しは追加していません。</p></details>
+    </section>
+    <section id="history-delete" class="screen">
+      <a class="back" href="#history">← 履歴詳細</a><p class="eyebrow">DELETE HISTORY</p><h2>この履歴を削除しますか？</h2>
+      <div class="card"><p class="muted">2026.10.14 · 19:30 / 4人</p><div class="pay-row"><span>ゆうの負け額</span><strong>1,800円</strong></div><p>会計総額：13,800円</p></div>
+      <div class="notice"><strong>累積負け額からも除外します</strong><p>ゆうの累積負け額は、この記録の1,800円を除いた金額になります。</p></div>
+      <a href="#history-deleted" class="button danger">削除する</a><a href="#history" class="button secondary">キャンセル</a>
+      <p class="hint">モックのリンクです。実際の削除は行いません。</p>
+    </section>
+    <section id="history-deleted" class="screen">
+      <p class="eyebrow">LOSS HISTORY</p><h2>履歴を削除しました。</h2><div class="card"><h3>まだ履歴がありません</h3><p class="muted">保存したゲームの負け額がここに表示されます。</p></div>
+      <a href="#home" class="button secondary">ホームへ →</a>
+      <div class="annotation"><p>1件だけあった履歴を削除した後の表示例です。実データは変更しません。ホームに戻ると削除前の固定サンプルが表示されます。削除方式・復元可否・APIの詳細は後続の設計で決めます。</p></div>
     </section>
   </div>
   <footer class="preview-footer">画面の説明は各画面下部に掲載 · サイコロの各状態もリンクで確認できます</footer>
@@ -120,7 +138,7 @@ function showScreen() {
   const target = document.getElementById(id);
   const active = target && target.classList.contains('screen') ? id : 'login';
   document.querySelectorAll('.screen').forEach(el => { el.hidden = el.id !== active; });
-  const group = active.startsWith('dice') ? 'dice' : ['result','saved'].includes(active) ? 'payment' : active;
+  const group = active.startsWith('dice') ? 'dice' : active.startsWith('history') ? 'history-list' : ['result','saved'].includes(active) ? 'payment' : active;
   document.querySelectorAll('nav a').forEach(el => { if (el.hash === '#' + group) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
   document.title = 'Roll & Pay | ' + document.querySelector('#' + active + ' h2').textContent;
   window.scrollTo(0, 0);

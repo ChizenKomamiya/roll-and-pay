@@ -18,6 +18,7 @@ const SESSION_KEY = 'roll-and-pay.demo.session'
 export function startApp(root: HTMLElement) {
   const service = createMockService({ getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) })
   let page: Page | undefined, generation = 0
+  let mountedHash: string | null = null
   let signedIn = false
   try { signedIn = sessionStorage.getItem(SESSION_KEY) === 'active' } catch { /* A session can still run without persisting the sign-in. */ }
   function setSignIn(value: boolean) {
@@ -27,16 +28,37 @@ export function startApp(root: HTMLElement) {
   const login = () => { setSignIn(true); navigate('/home', true) }
   const logout = () => { setSignIn(false); state.paymentInputs.clear(); state.selectedIds.clear(); navigate('/login', true) }
 
-  async function render() {
+  async function render(preserveViewport = false) {
+    const keepViewport = preserveViewport && mountedHash === location.hash
+    const scroll = { left: window.scrollX, top: window.scrollY }
+    const focusKey = document.activeElement?.getAttribute('data-focus-key') || root.querySelector<HTMLElement>('[data-refresh-focus-key]')?.dataset.refreshFocusKey
     const current = ++generation
     page?.dispose?.(); page = undefined
     const route = parseRoute(location.hash)
     if (!signedIn && route.page !== 'login') { navigate('/login', true); return }
     if (signedIn && route.page === 'login') { navigate('/home', true); return }
     const shell = el('div', 'app-shell', appHeader(signedIn, logout), el('div', 'demo-banner', 'デモモード · 記録はこのブラウザーに保存'))
-    const main = el('main'); shell.append(main); root.replaceChildren(shell)
-    main.append(el('p', 'loading', '読み込んでいます…'))
-    const context: PageContext = { service, isCurrent: () => current === generation, refresh: () => { void render() } }
+    const main = el('main'); shell.append(main)
+    // Keep the existing page height while refreshing. A short loading placeholder
+    // would make the browser clamp scrollY to zero before the new page is ready.
+    if (!keepViewport) { root.replaceChildren(shell); main.append(el('p', 'loading', '読み込んでいます…')) }
+    const context: PageContext = { service, isCurrent: () => current === generation, refresh: () => { void render(true) } }
+    function mount(element: HTMLElement) {
+      main.replaceChildren(element)
+      if (keepViewport) root.replaceChildren(shell)
+      mountedHash = location.hash
+      const heading = main.querySelector('h1')
+      document.title = `Roll & Pay${heading ? ` | ${heading.textContent}` : ''}`
+      if (keepViewport) {
+        const focusTarget = focusKey ? [...main.querySelectorAll<HTMLElement>('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey && !node.matches(':disabled') && !node.hidden) : null
+        // A rolled die becomes disabled. Focus the current result status instead,
+        // without forcing keyboard users back to the page heading.
+        const fallback = focusKey ? main.querySelector<HTMLElement>('.status') : null
+        const activeTarget = focusTarget ?? fallback
+        activeTarget?.focus({ preventScroll: true })
+        window.scrollTo({ ...scroll, behavior: 'instant' })
+      } else { window.scrollTo(0, 0); heading?.focus({ preventScroll: true }) }
+    }
     try {
       let result: Page
       switch (route.page) {
@@ -53,21 +75,18 @@ export function startApp(root: HTMLElement) {
         default: result = { element: el('section', 'screen', title('PAGE NOT FOUND', '画面が見つかりません。'), link('ホームへ →', '/home')) }
       }
       if (!context.isCurrent()) { result.dispose?.(); return }
-      page = result; main.replaceChildren(result.element)
-      const heading = main.querySelector('h1')
-      document.title = `Roll & Pay${heading ? ` | ${heading.textContent}` : ''}`
-      window.scrollTo(0, 0); heading?.focus({ preventScroll: true })
+      page = result; mount(result.element)
     } catch (reason) {
       if (!context.isCurrent()) return
-      const errorPage = el('section', 'screen', title('PLEASE CHECK', '表示できませんでした。'), el('p', 'error', reason instanceof Error ? reason.message : '再度お試しください。'), button('再読み込み', () => { void render() }), link('ホームへ →', '/home'))
+      const errorPage = el('section', 'screen', title('PLEASE CHECK', '表示できませんでした。'), el('p', 'error', reason instanceof Error ? reason.message : '再度お試しください。'), button('再読み込み', () => { void render(true) }), link('ホームへ →', '/home'))
       const details = el('details', 'demo-options', el('summary', '', 'デモデータを初期化'))
       const action = actions(context, details)
       details.append(el('p', '', 'このブラウザーのデモ記録を破棄し、サンプル4件に戻します。'), button('確認してサンプルに戻す', () => { void action.run(async () => { await service.resetDemo(); navigate('/home', true) }) }, 'button danger'))
-      errorPage.append(details); main.replaceChildren(errorPage)
+      errorPage.append(details); mount(errorPage)
     }
   }
   const refresh = () => { void render() }
-  const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_KEY || event.key === null) refresh() }
+  const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_KEY || event.key === null) void render(true) }
   window.addEventListener('hashchange', refresh); window.addEventListener('storage', onStorage)
   refresh()
   return () => { generation++; page?.dispose?.(); window.removeEventListener('hashchange', refresh); window.removeEventListener('storage', onStorage) }

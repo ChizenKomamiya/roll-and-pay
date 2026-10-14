@@ -14,6 +14,7 @@ export async function dicePage(context: PageContext, id: string): Promise<Page> 
   const heading = game.status === 'tie' ? '同点！ もう一度。' : loser ? `今日の端数は、${loser.name}。` : remaining.length === game.participants.length ? 'さあ、運だめし。' : `あと${remaining.length}人、どうぞ。`
   const root = el('section', 'screen', title(`STEP 02 / ROUND ${round.number}`, heading, '最も小さい出目の人が端数を負担します。'))
   const status = el('div', 'status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite')
+  status.tabIndex = -1
   status.append(el('strong', '', game.status === 'tie' ? '最小の出目が同点' : loser ? '敗者確定' : remaining.length === game.participants.length ? 'まだ振っていません' : '他の人の操作待ち'), el('span', '', `${game.participants.length - remaining.length} / ${game.participants.length}人`))
   root.append(status)
   const grid = el('div', 'dice-grid'), views = new Map<string, DiceView>()
@@ -39,6 +40,7 @@ export async function dicePage(context: PageContext, id: string): Promise<Page> 
     const value = round.rolls[participant.id], view = diceView(value)
     views.set(participant.id, view)
     const card = button('', () => { void roll(participant.id) }, `dice-card${loser?.id === participant.id ? ' loser' : ''}`)
+    card.dataset.focusKey = `die-${participant.id}`
     card.disabled = value !== null || game.status !== 'rolling'
     card.setAttribute('aria-label', value === null ? `${participant.name}のサイコロを振る` : `${participant.name} 出目${value}${loser?.id === participant.id ? ' 敗者' : ''}`)
     card.append(el('span', '', participant.name, loser?.id === participant.id ? el('em', '', '敗者') : null), view.element, el('small', '', value === null ? 'タップして振る' : `出目 ${value} · 確定`))

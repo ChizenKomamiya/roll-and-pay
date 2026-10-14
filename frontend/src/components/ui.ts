@@ -11,7 +11,10 @@ export function link(label: string, path: string, className = 'button secondary'
   const node = el('a', className, label); node.href = `#${path}`; return node
 }
 export function button(label: string, handler: () => void, className = 'button primary') {
-  const node = el('button', className, label); node.type = 'button'; node.addEventListener('click', handler); return node
+  const node = el('button', className, label)
+  node.type = 'button'; node.dataset.focusKey = label
+  node.addEventListener('click', handler)
+  return node
 }
 export function title(eyebrow: string, heading: string, description?: string) {
   const h = el('h1', '', heading); h.tabIndex = -1
@@ -32,6 +35,8 @@ export function actions(context: PageContext, root: HTMLElement) {
     error,
     async run(task: () => Promise<void>) {
       if (busy || !context.isCurrent()) return
+      const focusKey = document.activeElement?.getAttribute('data-focus-key')
+      if (focusKey) root.dataset.refreshFocusKey = focusKey
       busy = true; error.hidden = true; root.setAttribute('aria-busy', 'true')
       const controls = [...root.querySelectorAll<HTMLInputElement | HTMLButtonElement>('button, input')]
       const previous = controls.map(control => control.disabled)
@@ -40,7 +45,7 @@ export function actions(context: PageContext, root: HTMLElement) {
         if (context.isCurrent()) { error.textContent = reason instanceof Error ? reason.message : '操作に失敗しました。再度お試しください。'; error.hidden = false }
       } finally {
         busy = false
-        if (context.isCurrent()) { controls.forEach((control, i) => { control.disabled = previous[i] }); root.removeAttribute('aria-busy') }
+        if (context.isCurrent()) { controls.forEach((control, i) => { control.disabled = previous[i] }); root.removeAttribute('aria-busy'); delete root.dataset.refreshFocusKey }
       }
     },
   }

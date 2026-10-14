@@ -1,0 +1,18 @@
+:root {
+  font-family: 'Segoe UI', 'Yu Gothic UI', Meiryo, sans-serif;
+  color: #233b36;
+  background: #edf0e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+#app { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.startup { width: min(100%, 480px); padding: 40px 24px; background: #fffdf7; border: 1px solid #dce3d7; border-radius: 24px; text-align: center; }
+.dice-mark { width: 80px; height: 80px; margin: 0 auto 24px; display: grid; place-items: center; border-radius: 20px; background: #d5ed9b; color: #206e55; font-size: 64px; }
+.eyebrow { color: #206e55; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+h1 { font-size: clamp(22px, 5vw, 28px); line-height: 1.5; }
+p { font-size: 14px; line-height: 1.8; }
+.status { color: #73827b; font-size: 12px; }

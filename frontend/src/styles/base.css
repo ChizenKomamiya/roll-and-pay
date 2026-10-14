@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light;
+  --ink: #233b36;
+  --muted: #66796d;
+  --green: #206e55;
+  --paper: #fffdf7;
+  --line: #e2e8df;
+  --lime: #d5ed9b;
+  --orange: #fff0d6;
+  color: var(--ink);
+  background: #edf0e9;
+  font-family: 'Segoe UI', 'Yu Gothic UI', Meiryo, sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 0; }
+button, input { font: inherit; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+a { color: var(--green); text-decoration: none; }
+a:hover, button:not(:disabled):hover { filter: brightness(.96); }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #c18a35; outline-offset: 3px; }
+h1:focus { outline: none; }
+h1 { font-size: 27px; line-height: 1.45; letter-spacing: -.8px; margin: 0 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: 16px; margin: 0; }
+p { margin: 10px 0; }
+.app-shell { max-width: 460px; min-height: 100dvh; margin: 24px auto; background: var(--paper); border: 1px solid #dce3d7; border-radius: 24px; box-shadow: 0 18px 60px #34463514; overflow: hidden; }
+.screen { padding: 24px 24px 32px; }
+.page-title { margin-bottom: 20px; }
+.eyebrow { font-size: 10px; font-weight: 750; letter-spacing: 2px; color: var(--green); margin: 0 0 10px; }
+.muted { color: var(--muted); font-size: 13px; }
+.hint { font-size: 12px; color: var(--muted); text-align: center; margin: 14px 0; }
+.loading { padding: 32px 24px; }
+.error { background: #fff0eb; border: 1px solid #ddb1a3; border-radius: 10px; padding: 12px; color: #923c29; font-size: 13px; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+@media (max-width: 500px) { .app-shell { margin: 0; border: 0; border-radius: 0; box-shadow: none; } }
+@media (max-width: 380px) { .screen { padding: 22px 16px 28px; } h1 { font-size: 24px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }

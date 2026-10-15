@@ -1,0 +1,5 @@
+# ローカル設定・コンパイル結果はコミットしない。
+*.local.bicepparam
+*.local.parameters.json
+*.local.json
+build/

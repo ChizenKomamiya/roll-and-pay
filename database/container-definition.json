@@ -1,0 +1,34 @@
+{
+  "databaseName": "rollpay",
+  "containerName": "app",
+  "partitionKey": {
+    "paths": ["/ownerKey"],
+    "kind": "Hash",
+    "version": 2
+  },
+  "indexingPolicy": {
+    "indexingMode": "consistent",
+    "automatic": true,
+    "includedPaths": [
+      {"path": "/type/?"},
+      {"path": "/status/?"},
+      {"path": "/gameId/?"},
+      {"path": "/createdAt/?"},
+      {"path": "/roundNumber/?"}
+    ],
+    "excludedPaths": [{"path": "/*"}],
+    "compositeIndexes": [
+      [
+        {"path": "/type", "order": "ascending"},
+        {"path": "/status", "order": "ascending"},
+        {"path": "/createdAt", "order": "descending"},
+        {"path": "/gameId", "order": "descending"}
+      ],
+      [
+        {"path": "/type", "order": "ascending"},
+        {"path": "/gameId", "order": "ascending"},
+        {"path": "/roundNumber", "order": "ascending"}
+      ]
+    ]
+  }
+}

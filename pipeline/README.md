@@ -102,8 +102,15 @@ node --test pipeline/tests/trigger-filters.test.mjs
 
 ## 確認範囲
 
-ローカルで共通スクリプト、変更パスの分離、ワークフローの静的構文を検証する。GitHub上での初回実行・Secretの登録状態・OIDC／RBAC・実デプロイの成功は別途確認が必要。
+ローカルで共通スクリプト、変更パスの分離、ワークフローの静的構文を検証する。GitHub上のビルド・検証は初回実行済み。Secret／OIDC／RBACを設定した後の実デプロイの成功は別途確認が必要。
 
 2026年10月16日：Windows／PowerShell 7でフロントエンド48テスト・ビルド、バックエンド発行とローカル設定除外、インフラ／DBのオフラインテストとBicepコンパイルが成功。変更パスの分離38テスト、PowerShell構文、actionlint 1.7.12による5ワークフローの静的検証が成功。Azureリソースへの反映は実行していない。
+
+同日のGitHub初回実行（`f181f39`、Ubuntu runner）：
+
+- [Frontend](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811378061)：テスト・ビルド成功。`AZURE_STATIC_WEB_APPS_API_TOKEN`未登録のため、配置前の確認ステップで停止。
+- [Backend](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811378020)：発行確認成功。配置用Client IDのVariable未登録のため、Azureログイン前に停止。
+- [Infrastructure](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377998)、[Database](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377963)：検証成功。自動pushでは反映ジョブをスキップ。
+- [Pipeline definitions](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377947)：トリガー分離テスト・PowerShell構文の検証成功。
 
 参考：[GitHubの配置ディレクトリ](https://docs.github.com/en/actions/tutorials/create-an-example-workflow)、[変更パスのフィルター](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)、[SWAビルド構成](https://learn.microsoft.com/azure/static-web-apps/build-configuration)、[FunctionsのGitHub Actions配置](https://learn.microsoft.com/azure/azure-functions/functions-how-to-github-actions)。

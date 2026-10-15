@@ -150,7 +150,7 @@ PR作成後はこの文書末尾の進捗表へURLと状態を記録する。依
 | グループ | 状態 | PR |
 |---|---|---|
 | G01 | mainへマージ済み | [#1](https://github.com/ChizenKomamiya/roll-and-pay/pull/1) |
-| G02 | 実装・オフライン検証済み、PR作成中。エミュレーター統合2件は未実施 | — |
+| G02 | 実装・オフライン検証済み、レビュー待ち（未マージ）。エミュレーター統合2件は未実施 | [#2](https://github.com/ChizenKomamiya/roll-and-pay/pull/2) |
 | G03 | 未着手 | — |
 | G04 | 未着手 | — |
 | G05 | 未着手 | — |

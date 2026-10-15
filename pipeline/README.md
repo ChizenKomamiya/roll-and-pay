@@ -7,7 +7,7 @@ GitHub Actionsの入口はルートの `.github/workflows/`。この `pipeline/`
 | ワークフロー | 対象変更 | mainへのpush | PR | 手動実行 |
 |---|---|---|---|---|
 | [Frontend](../.github/workflows/frontend.yml) | `frontend/**`、`pipeline/frontend/**`、自身のYAML | テスト・ビルド後、SWA本番へ自動配置 | テスト・ビルドのみ | mainから再配置 |
-| [Backend](../.github/workflows/backend.yml) | `backend/**`、`pipeline/backend/**`、自身のYAML | 発行後、既存Functionsへ自動配置 | 発行確認のみ | mainから再配置 |
+| [Backend](../.github/workflows/backend.yml) | `backend/**`、`pipeline/backend/**`、自身のYAML | テスト・発行後、既存Functionsへ自動配置 | テスト・発行確認 | mainから再配置 |
 | [Infrastructure](../.github/workflows/infrastructure.yml) | `infra/**`、共通DB定義、`pipeline/infrastructure/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
 | [Database](../.github/workflows/database.yml) | `database/**`、`pipeline/database/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
 | [Pipeline definitions](../.github/workflows/pipelines.yml) | ワークフロー定義、`pipeline/tests/**` | トリガー分離テスト・PowerShell構文検証 | 同左 | 検証のみ |
@@ -52,7 +52,7 @@ Functionsの共有キー・公開プロファイルは使わず、Azure/loginの
 
 Azure側で当該Function Appへのコード配置に必要な権限を付与する（公式例のWebsite Contributor等を対象スコープで確認）。リソース作成・DBデータへの権限をバックエンド配置IDへ一括付与しない。PRではAzure/login・配置のステップを実行しない。
 
-`.NET 10`で`dotnet publish`し、`backend/bin/ci-publish`を`Azure/functions-action`で既存アプリに発行する。`local.settings*.json`の発行除外を確認してから配置する。現時点は匿名の`GET /api/v1/health`のみ。業務API・認証・DB接続はまだ配置されない。バックエンド用の自動テストプロジェクトは未作成で、現段階のCIは復元・発行・配置物の確認まで。
+`.NET 10`で`backend/tests/RollAndPay.Api.Tests.csproj`のテスト後に`dotnet publish`し、`backend/bin/ci-publish`を`Azure/functions-action`で既存アプリに発行する。`local.settings*.json`とテスト資材の発行除外を確認してから配置する。G01では匿名ヘルスチェックに加えて管理者認証・HTTP共通処理・`GET /api/v1/me`・OPTIONSを実装。DB接続とA02以降は後続グループで対応する。PRはテスト・発行物の確認だけを行い、Azureへ配置しない。
 
 ## インフラ・DB：検証と手動反映
 

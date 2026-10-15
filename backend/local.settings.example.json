@@ -1,6 +1,15 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "Auth__TenantId": "<tenant-guid>",
+    "Auth__ApiClientId": "<api-client-guid>",
+    "Auth__AllowedSpaClientId": "<spa-client-guid>",
+    "Auth__AdministratorObjectId": "<administrator-user-object-guid>",
+    "Auth__RequiredScope": "access_as_user"
+  },
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": false
   }
 }

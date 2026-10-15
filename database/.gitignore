@@ -1,2 +1,4 @@
 build/
 *.local.json
+**/bin/
+**/obj/

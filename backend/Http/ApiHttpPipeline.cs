@@ -46,6 +46,7 @@ public sealed class ApiHttpPipeline(EntraTokenValidator validator, ILogger<ApiHt
                 }
 
                 context.User = check.Principal!;
+                ReadSession.Attach(context);
             }
 
             await next();
@@ -58,6 +59,8 @@ public sealed class ApiHttpPipeline(EntraTokenValidator validator, ILogger<ApiHt
         {
             context.Response.Clear();
             SetHeaders(context);
+            if (exception.RetryAfterSeconds is int seconds)
+                context.Response.Headers.RetryAfter = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             await ApiErrors.WriteAsync(context, exception.StatusCode, exception.Code, exception.Message);
         }
         catch (Exception) when (!context.Response.HasStarted)

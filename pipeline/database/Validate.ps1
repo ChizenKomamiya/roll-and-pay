@@ -8,6 +8,10 @@ Push-Location $repoPath
 try {
     pwsh -NoProfile -File ./database/tests/Test-Schema.ps1
     if ($LASTEXITCODE -ne 0) { throw 'Database offline tests failed.' }
+    dotnet restore backend/RollAndPay.Api.csproj
+    if ($LASTEXITCODE -ne 0) { throw 'Backend dependency restore failed.' }
+    dotnet test backend/tests/RollAndPay.Api.Tests.csproj --configuration Release --filter 'FullyQualifiedName~InitialDataTests' --verbosity minimal
+    if ($LASTEXITCODE -ne 0) { throw 'Initial data tool tests failed.' }
     az bicep install --only-show-errors
     if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
     New-Item -ItemType Directory -Path database/build -Force | Out-Null

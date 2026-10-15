@@ -1,5 +1,7 @@
 # AzureインフラのBicepテンプレート
 
+GitHub Actionsの資産別ワークフローは [pipelineの手順](../pipeline/README.md) を参照。インフラ変更時はオフライン検証・コンパイルまで自動実行し、Azureでのwhat-if／反映は手動実行する。
+
 [基本設計](../spec/infrastructure.md)と[DB設計](../spec/database-design.md)をもとにした初版。2026年10月15日、ユーザーが初回デプロイを実行し、親・子デプロイの成功と主要設定を確認した。[確認記録](deployment-verification.md)を参照。
 
 ## ファイル

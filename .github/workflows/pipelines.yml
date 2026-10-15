@@ -1,0 +1,36 @@
+name: Pipeline definitions
+
+'on':
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**', 'pipeline/tests/**']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/**', 'pipeline/tests/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Check asset-specific triggers
+        run: node --test pipeline/tests/trigger-filters.test.mjs
+      - name: Parse pipeline PowerShell scripts
+        shell: pwsh
+        run: |
+          Get-ChildItem pipeline -Recurse -Filter '*.ps1' | ForEach-Object {
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }

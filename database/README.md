@@ -1,5 +1,7 @@
 # データベース定義・反映スクリプト
 
+GitHub ActionsではDB資産の変更時に検証・コンパイルのみを自動実行する。Azureへの反映は手動実行。[pipelineの手順](../pipeline/README.md) を参照。
+
 [DB設計](../spec/database-design.md)に基づく **Azure Cosmos DB for NoSQL** 用の資材。MongoDB用のコレクション定義・mongoshスクリプトではない。
 
 ## 構成

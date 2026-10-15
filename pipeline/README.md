@@ -1,0 +1,109 @@
+# CI/CD（資産別）
+
+GitHub Actionsの入口はルートの `.github/workflows/`。この `pipeline/` には実行スクリプトと運用手順をまとめる。ワークフローYAMLを `pipeline/` だけに置いてもGitHubは自動検出しない。
+
+## トリガーと配置範囲
+
+| ワークフロー | 対象変更 | mainへのpush | PR | 手動実行 |
+|---|---|---|---|---|
+| [Frontend](../.github/workflows/frontend.yml) | `frontend/**`、`pipeline/frontend/**`、自身のYAML | テスト・ビルド後、SWA本番へ自動配置 | テスト・ビルドのみ | mainから再配置 |
+| [Backend](../.github/workflows/backend.yml) | `backend/**`、`pipeline/backend/**`、自身のYAML | 発行後、既存Functionsへ自動配置 | 発行確認のみ | mainから再配置 |
+| [Infrastructure](../.github/workflows/infrastructure.yml) | `infra/**`、共通DB定義、`pipeline/infrastructure/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
+| [Database](../.github/workflows/database.yml) | `database/**`、`pipeline/database/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
+| [Pipeline definitions](../.github/workflows/pipelines.yml) | ワークフロー定義、`pipeline/tests/**` | トリガー分離テスト・PowerShell構文検証 | 同左 | 検証のみ |
+
+資産側のREADME更新は対象外。`README.md`、`docs/`、`spec/`、この手順書だけの変更では配置しない。フロントエンドの変更でバックエンドを配置することも、その逆もない。両資産を同時に変更したコミットでは両方が独立して実行される。
+
+`database/container-definition.json` は両方のBicepが参照するため、InfrastructureとDatabaseの検証が両方動く。自動でAzureへ反映はしない。
+
+手動のクラウド操作はmainのみ。フロントとバックの自動実行は資産ごとに直列化し、別資産を待たせない。インフラ・DBの手動Azure操作は共通のconcurrency groupで直列化する。GitHub外の手動配置までは排他しない。
+
+## フロントエンド：最初に設定するもの
+
+対象：`rg-rollpay-prod-jpe` の `swa-rollpay-prod`。
+
+1. Azure Portalで当該Static Web Appの「デプロイトークンの管理」を開く。
+2. GitHubの [リポジトリのActions Secrets設定](https://github.com/ChizenKomamiya/roll-and-pay/settings/secrets/actions) → **New repository secret**。
+3. 名前を **`AZURE_STATIC_WEB_APPS_API_TOKEN`**、値をこのSWAの配置トークンとして保存する。
+4. GitHubの **Actions → Frontend → Run workflow → main** で初回配置する。その後は対象パスの変更をmainへpushすると自動配置される。
+
+トークンはチャット・ソース・コミット・コマンドラインに貼らない。既存の同名Secretが正しいSWAを指していればそのまま使える。Secretはリソース作成用のAzure資格情報とは別。
+
+Node.js 24とpnpm 11.25.0を使い、`install --frozen-lockfile` → 48件の現行テスト → 型チェック・本番ビルド → `frontend/dist` だけを配置する。Azure側では再ビルドせず、APIも同梱しない。プレビュー環境は作らずmainを本番へ配置する。
+
+公開先：[Roll & Pay](https://jolly-river-0ce97e200.4.azurestaticapps.net/)。現時点はデモモードで、記録は閲覧者のブラウザー内に保存される。Microsoftログイン・業務API接続は未実装。
+
+## バックエンド：OIDCの準備
+
+Functionsの共有キー・公開プロファイルは使わず、Azure/loginのOIDCで既存Flex Consumptionのアプリへ配置する。GitHubのSecrets and variables → Actions → **Variables** に次を設定する。
+
+| Repository Variable | 値 |
+|---|---|
+| `ROLLPAY_AZURE_TENANT_ID` | 配置先テナントID |
+| `ROLLPAY_AZURE_SUBSCRIPTION_ID` | 配置先サブスクリプションID |
+| `ROLLPAY_BACKEND_DEPLOY_CLIENT_ID` | バックエンド配置専用のEntraアプリ／User-assigned Managed IdentityのClient ID |
+| `ROLLPAY_FUNCTION_APP_NAME` | `rollpay-prod`デプロイ出力の`functionAppName` |
+
+配置用IDはSPA／業務APIのアプリ登録や、Functions実行用のSystem-assigned Managed Identityとは別に用意する。GitHubとのフェデレーションは次を使用する。
+
+- Issuer：`https://token.actions.githubusercontent.com`
+- Audience：`api://AzureADTokenExchange`
+- Subject：`repo:ChizenKomamiya/roll-and-pay:ref:refs/heads/main`
+
+Azure側で当該Function Appへのコード配置に必要な権限を付与する（公式例のWebsite Contributor等を対象スコープで確認）。リソース作成・DBデータへの権限をバックエンド配置IDへ一括付与しない。PRではAzure/login・配置のステップを実行しない。
+
+`.NET 10`で`dotnet publish`し、`backend/bin/ci-publish`を`Azure/functions-action`で既存アプリに発行する。`local.settings*.json`の発行除外を確認してから配置する。現時点は匿名の`GET /api/v1/health`のみ。業務API・認証・DB接続はまだ配置されない。バックエンド用の自動テストプロジェクトは未作成で、現段階のCIは復元・発行・配置物の確認まで。
+
+## インフラ・DB：検証と手動反映
+
+push／PRの検証ではAzureログインせず、Azure上の設定を読み書きしない。パラメーターの構文確認には架空のIDと連絡先を使う。Bicep CLIの取得にはネットワーク接続が必要。
+
+実反映するときは、Actionsで対象ワークフローの **Run workflow → main → operation** を選ぶ。
+
+- `validate`：既定。ローカル検証のみ。
+- `what-if`：Azureでの差分確認のみ。
+- `apply`：検証後、Azureへ反映。
+
+先に`what-if`を実行して差分を確認し、意図した変更なら改めて`apply`を選ぶ。両実行の間の変更を固定・ロックするplan方式ではない。反映は選んだmainコミットを使う。GitHub Environmentsの`infrastructure-production`、`database-production`にはmain限定の配置ブランチ制限を設定でき、契約プランに応じて承認者も設定できる。
+
+クラウド操作用の共通Variablesは上記のTenant ID・Subscription ID。追加設定は以下。
+
+| 用途 | Variables | Secrets |
+|---|---|---|
+| Infrastructure | `ROLLPAY_INFRA_DEPLOY_CLIENT_ID`、`ROLLPAY_API_CLIENT_ID`、`ROLLPAY_SPA_CLIENT_ID`、`ROLLPAY_BUDGET_START_DATE` | `ROLLPAY_ADMIN_OBJECT_ID`、`ROLLPAY_BUDGET_EMAIL` |
+| Database | `ROLLPAY_DATABASE_DEPLOY_CLIENT_ID`、`ROLLPAY_COSMOS_ACCOUNT_NAME` | なし |
+
+`ROLLPAY_API_CLIENT_ID`と`ROLLPAY_SPA_CLIENT_ID`は登録済みの業務API／SPAのClient ID。`ROLLPAY_BUDGET_START_DATE`は既存予算と同じ値（初回配置月の`2026-10-01T00:00:00Z`）を維持する。
+
+手動配置用IDのOIDC Issuer/Audienceは上記と同じ。Subjectは環境ごとに分ける。
+
+- インフラ：`repo:ChizenKomamiya/roll-and-pay:environment:infrastructure-production`
+- DB：`repo:ChizenKomamiya/roll-and-pay:environment:database-production`
+
+インフラ用IDには既存[インフラ手順](../infra/README.md)に記載のサブスクリプションデプロイ・RG／リソース管理・ロール割り当て権限が必要。DB用IDには[DB手順](../database/README.md)の管理プレーン権限が必要。自動ワークフローからID作成・権限付与は行わない。OIDC設定・RBACが済んでいなければクラウド操作は失敗する。
+
+インフラのwhat-ifは設定値・通知先をログへ出さないようResourceIdOnlyを使う。詳細な設定差分の確認が必要な場合は、既存のローカル手順で確認する。DBは既存の互換性検証付きApply-Schema.ps1を呼ぶ。APIコード・固定参加者の初期データをIaCと同時に配置しない。
+
+## ローカルから同じ検証を実行
+
+リポジトリのルートでPowerShell 7から実行する。
+
+```powershell
+./pipeline/frontend/Build.ps1
+./pipeline/backend/Build.ps1
+./pipeline/infrastructure/Validate.ps1
+./pipeline/database/Validate.ps1
+node --test pipeline/tests/trigger-filters.test.mjs
+```
+
+必要なNode.js／pnpm・.NET SDK・Azure CLIは各資産のREADMEを参照。LinuxのGitHub-hosted runnerでも同じPowerShellスクリプトを使う。
+
+設定未登録の場合、mainのフロント／バックの実行はビルド成功後の配置ステップで失敗する。設定後に対象ワークフローをmainから手動実行するか、失敗したrunを再実行する。
+
+## 確認範囲
+
+ローカルで共通スクリプト、変更パスの分離、ワークフローの静的構文を検証する。GitHub上での初回実行・Secretの登録状態・OIDC／RBAC・実デプロイの成功は別途確認が必要。
+
+2026年10月16日：Windows／PowerShell 7でフロントエンド48テスト・ビルド、バックエンド発行とローカル設定除外、インフラ／DBのオフラインテストとBicepコンパイルが成功。変更パスの分離38テスト、PowerShell構文、actionlint 1.7.12による5ワークフローの静的検証が成功。Azureリソースへの反映は実行していない。
+
+参考：[GitHubの配置ディレクトリ](https://docs.github.com/en/actions/tutorials/create-an-example-workflow)、[変更パスのフィルター](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)、[SWAビルド構成](https://learn.microsoft.com/azure/static-web-apps/build-configuration)、[FunctionsのGitHub Actions配置](https://learn.microsoft.com/azure/azure-functions/functions-how-to-github-actions)。

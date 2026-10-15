@@ -1,0 +1,73 @@
+name: Infrastructure
+
+'on':
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '!infra/**/*.md'
+      - 'database/container-definition.json'
+      - 'pipeline/infrastructure/**'
+      - '.github/workflows/infrastructure.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '!infra/**/*.md'
+      - 'database/container-definition.json'
+      - 'pipeline/infrastructure/**'
+      - '.github/workflows/infrastructure.yml'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Azure operation (main branch only)
+        type: choice
+        options: [validate, what-if, apply]
+        default: validate
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate infrastructure without Azure login
+        shell: pwsh
+        run: ./pipeline/infrastructure/Validate.ps1
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation != 'validate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: infrastructure-production
+    concurrency:
+      group: rollpay-production-infrastructure-and-database
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: Azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.ROLLPAY_INFRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ROLLPAY_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.ROLLPAY_AZURE_SUBSCRIPTION_ID }}
+      - name: Validate, preview or apply infrastructure
+        shell: pwsh
+        env:
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          ROLLPAY_AZURE_SUBSCRIPTION_ID: ${{ vars.ROLLPAY_AZURE_SUBSCRIPTION_ID }}
+          ROLLPAY_API_CLIENT_ID: ${{ vars.ROLLPAY_API_CLIENT_ID }}
+          ROLLPAY_SPA_CLIENT_ID: ${{ vars.ROLLPAY_SPA_CLIENT_ID }}
+          ROLLPAY_ADMIN_OBJECT_ID: ${{ secrets.ROLLPAY_ADMIN_OBJECT_ID }}
+          ROLLPAY_BUDGET_START_DATE: ${{ vars.ROLLPAY_BUDGET_START_DATE }}
+          ROLLPAY_BUDGET_EMAIL: ${{ secrets.ROLLPAY_BUDGET_EMAIL }}
+        run: ./pipeline/infrastructure/Deploy.ps1 -Operation $env:DEPLOY_OPERATION

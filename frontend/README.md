@@ -110,3 +110,7 @@ Vitestで金額の境界、同点判定、個別→一括、保存復元、版�
 確定した画面モックは [spec/mockups/index.html](../spec/mockups/index.html)、表示ルールは [画面設計](../spec/screen-mockups.md) を参照する。
 
 参考：[Vite公式ガイド](https://vite.dev/guide/)
+
+## GitHub Actionsでの配置
+
+フロントエンド資産がmainに入ったときだけ、テスト・ビルド後に既存SWAへ自動配置する。PRでは検証のみ。配置Secretの登録と初回実行は [pipelineの手順](../pipeline/README.md) を参照。

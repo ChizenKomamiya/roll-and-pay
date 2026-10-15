@@ -4,7 +4,7 @@
 
 管理者がログインした一台のスマートフォンで参加者を選び、サイコロを振って敗者を決めます。会計総額から各自の負担額を計算し、ゲーム結果と負け額を保存します。過去の履歴や参加者ごとの累積負け額も確認できます。
 
-画面はTypeScript、APIはC#のAzure Functions、データ保存はAzure Cosmos DBを使用する設計です。Azureのインフラ定義はBicepで管理します。現在は設計資料と画面モックを作成済みで、アプリの実装はこれから進めます。
+画面はTypeScript、APIはC#のAzure Functions、データ保存はAzure Cosmos DBを使用する設計です。Azureのインフラ定義はBicepで管理します。現在はフロントエンドのデモ、APIのヘルスチェック、Azureリソースを用意しています。本番の認証・業務API接続は今後の対応です。
 
 ## ディレクトリ構成
 
@@ -17,8 +17,11 @@ roll-and-pay/
 ├─ database/    # DBの索引定義、初期データのサンプル、移行処理
 ├─ infra/       # Azureリソースの定義（Bicep）
 ├─ scripts/     # ビルド・デプロイ・DB初期登録などの実行スクリプト
+├─ pipeline/    # 資産別のCI/CD実行スクリプトと設定手順
+├─ .github/workflows/ # GitHub Actionsの実行入口
 ├─ docs/        # 要件・画面一覧・機能一覧
 ├─ spec/        # 基本設計・画面モック
+├─ plan/        # 実装のグループ分け、ブランチ、依存関係、進捗
 └─ README.md
 ```
 
@@ -32,3 +35,5 @@ DBを読み書きするC#コードは`backend/`、索引定義やデータ移行
 - [画面一覧・機能一覧](docs/screens-and-features.md)
 - [基本設計・画面モック](spec/README.md)
 - [データベース定義・反映スクリプト](database/README.md)
+- [バックエンド実装計画](plan/backend-implementation.md)
+- [資産別のGitHub Actions・配置設定](pipeline/README.md)

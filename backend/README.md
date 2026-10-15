@@ -12,7 +12,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Workerのベースライン。
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲームAPI、認証ミドルウェア、Cosmos DB接続、フロントエンドとの通信、Azure配置は後続で実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲームAPI、認証ミドルウェア、Cosmos DB接続、フロントエンドとの通信は後続で実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。Azure配置のワークフローと必要な設定は後述する。
 
 ## 初回の環境準備（Windows）
 
@@ -66,5 +66,9 @@ curl.exe -i http://localhost:7071/api/v1/health
 - `local.settings.example.json`：秘密情報を含まないローカル設定例。
 
 設計は[API定義](../spec/api-design.md)・[インフラ設計](../spec/infrastructure.md)を参照。
+
+## GitHub Actionsでの配置
+
+バックエンド資産がmainに入ったときだけ、.NET 10の発行後に既存Flex Consumptionへ自動配置する。フロントエンドとは別のワークフロー。ローカル設定ファイル・設定例は発行物から除外する。GitHubとAzureのOIDC準備、Repository Variablesは [pipelineの手順](../pipeline/README.md) を参照。現時点の配置対象は上記ヘルスチェックのみ。
 
 参考：[Isolated Worker公式ガイド](https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide)、[Core Tools](https://github.com/Azure/azure-functions-core-tools)、[HTTPトリガーのローカル設定](https://learn.microsoft.com/en-us/azure/azure-functions/functions-develop-vs?pivots=isolated)。

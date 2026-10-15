@@ -1,0 +1,77 @@
+name: Database
+
+'on':
+  push:
+    branches: [main]
+    paths:
+      - 'database/**'
+      - '!database/README.md'
+      - 'pipeline/database/**'
+      - '.github/workflows/database.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/**'
+      - '!database/README.md'
+      - 'pipeline/database/**'
+      - '.github/workflows/database.yml'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Azure operation (main branch only)
+        type: choice
+        options: [validate, what-if, apply]
+        default: validate
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate database definitions without Azure login
+        shell: pwsh
+        run: ./pipeline/database/Validate.ps1
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation != 'validate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: database-production
+    concurrency:
+      group: rollpay-production-infrastructure-and-database
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: Azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ vars.ROLLPAY_DATABASE_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ROLLPAY_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.ROLLPAY_AZURE_SUBSCRIPTION_ID }}
+      - name: Preview or apply database schema
+        shell: pwsh
+        env:
+          DEPLOY_OPERATION: ${{ inputs.operation }}
+          TARGET_SUBSCRIPTION: ${{ vars.ROLLPAY_AZURE_SUBSCRIPTION_ID }}
+          COSMOS_ACCOUNT_NAME: ${{ vars.ROLLPAY_COSMOS_ACCOUNT_NAME }}
+        run: |
+          if (!$env:TARGET_SUBSCRIPTION -or !$env:COSMOS_ACCOUNT_NAME) { throw 'Set subscription and Cosmos account repository variables. See pipeline/README.md.' }
+          az bicep install --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
+          $options = @{
+            SubscriptionId = $env:TARGET_SUBSCRIPTION
+            ResourceGroupName = 'rg-rollpay-prod-jpe'
+            AccountName = $env:COSMOS_ACCOUNT_NAME
+          }
+          if ($env:DEPLOY_OPERATION -eq 'apply') { $options.Apply = $true }
+          ./database/Apply-Schema.ps1 @options

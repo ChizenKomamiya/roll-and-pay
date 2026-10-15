@@ -6,6 +6,8 @@
 
 参照：[機能詳細](functional-design.md)／[API定義](api-design.md)／[インフラ](infrastructure.md)
 
+2026年10月15日：[定義・反映スクリプト](../database/README.md)を追加。`database/container-definition.json`をDB名・コンテナー名・パーティション・インデックスの共通定義とし、DB単独のBicepとインフラ全体のBicepから参照する。実Azureへの反映・初期参加者投入は未実施。
+
 ## 1. 保存方式とパーティション
 
 Databaseは`rollpay`、Containerは`app`一つ、Partition Keyは`/ownerKey`。ownerKeyはAPIが検証済みtidとoidから`<tid>:<oid>`として組み立てる。ブラウザーに設定させない。管理者のObject IDが変わる移行は別のデータ移行として扱う。

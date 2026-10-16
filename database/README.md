@@ -31,7 +31,7 @@ GitHub ActionsではDB資産の変更時に検証・コンパイルのみを自�
 
 ## 固定参加者の初期登録（G02）
 
-`seed/RollAndPay.Seed.csproj`は既存のDB・コンテナーへ、同一ownerKeyの`roster`・`control`・`lossTotals`を一つのTransactionalBatchでCreateする。Upsert/Replaceは使わず、どれか一件でも既存なら全件失敗とし、既存データを上書きしない。controlはactiveGameId=null、累積額は無効者も含め全員`"0"`で初期化する。既存参加者の変更や集計再構築には使わない。
+`seed/RollAndPay.Seed.csproj`は既存のDB・コンテナーへ、同一ownerKeyの`roster`・`control`・`lossTotals`を一つのTransactionalBatchでCreateする。Upsert/Replaceは使わず、どれか一件でも既存なら全件失敗とし、既存データを上書きしない。controlはactiveGameId=null、累積額は無効者も含め全員`"0"`・`updatedAt=null`で初期化する。G08より前の初期日時付きデータもAPIで読取可能で、自動変更はしない。既存参加者の変更や集計再構築には使わない。
 
 必要なものは.NET 10 SDKとAzure CLI。配置専用のIDで対象テナントにログインし、対象コンテナーのデータプレーン権限（Cosmos DB Built-in Data Contributor等）を別途用意する。通常のAzure Contributorだけではデータを作成できない。APIのManaged Identityを借用せず、キー・シークレットを取得しない。ツールはAzureCliCredentialを使い、指定したTenantIdでトークンを要求する。
 

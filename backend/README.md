@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加者取得・ゲーム状態取得・作成・中止・抽選・再抽選）、G07（金額プレビュー）、G09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加者取得・ゲーム状態取得・作成・中止・抽選・再抽選）、G07（金額プレビュー）、G08（金額確定・累積額）、G09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -128,6 +128,19 @@ SDKはGateway接続・Session整合性。SDK要求のタイムアウト5秒、42
 
 初期3ドキュメントの登録とローカルエミュレーター統合検証は[databaseの手順](../database/README.md)を参照。本番への登録・Azure配置はコードのPR作成とは別作業。
 
+## 金額確定・累積額（G08）
+
+`POST /api/v1/games/{gameId}/payment`（A09）は`{"totalYen":13800}`、`Idempotency-Key`とプレビューで得た`If-Match`を受け取る。G07の厳密な整数検証・計算を再利用し、awaitingPaymentからcompletedへ遷移する。`registeredAt`・`completedAt`・`updatedAt`は同じサーバー時刻。200は`{"game":<Game>,"lossTotals":<A12の応答>}`と新しいゲームETagを返す。
+
+game・control・lossTotalsは内部ETag条件付きReplace、成功commandはCreateとして、同一所有者の4操作TransactionalBatchで保存する。敗者の累積へ保存するLだけをcheckedな64ビット加算で反映し、他の参加者の額・当時名・出目・ラウンドを保持する。0円の負け額も確定できる。保存済み総額の再編集はできない。
+
+成功記録を現在のゲーム状態より先に確認し、同キー・同じ要求・元If-Matchでは元の本文・ETagを再生して再加算しない。別金額・別版・別対象・別操作へのキー流用は409。削除後の保存成功応答の再生もDBを更新しない。不在／所有者外404、削除済み410、版不一致412、awaitingPayment以外409。内部ETag競合では元ゲーム版を維持して最大3回バッチ・全体10秒で打ち切る。集計だけの競合では最新集計から再計算する。コミット後の応答断は成功記録で確認し、不明なら元キーで再送できる503を返す。
+
+`GET /api/v1/statistics/losses`（A12）は本文・クエリなし。現在のroster全員（無効者を含む）をsortOrder→participantId順で返し、現在名・isActive・10進整数文字列`totalLossYen`を含む。集計は最大100件で、初期値は全員`"0"`・`updatedAt=null`。roster→lossTotals→rosterのPoint Readでマスター世代変更を検出し、最大3回で整合する組を取得する。ゲームの走査や再計算は行わず、完了時に反映した集計を読む。未完了・中止は加算されない。削除時の減算はG10の担当。
+
+集計・参加者の欠落や重複、不正な額、所有者・型・版・日時の不整合、ゲーム参加者と固定リストの不一致、累積オーバーフローは503で停止する。自動初期化・修復はしない。A09の現在名はDB設計どおり、業務更新中のマスター変更禁止を前提とする。A09直後は応答の集計を表示し、次のGETには最新`X-Read-Session`を継承する。再生応答は過去時点なので、ゲームと集計を再取得する。
+
+G08では`LossTotalsDocument.updatedAt`をnullableにし、新しい初期登録はnullを保存する。以前の登録ツールが保存した初期日時も読み取れ、その日時を維持する。ゼロ額だけでは未保存と0円確定済みを区別できないため、既存データを自動でnullへ書き換えない。
 ## 初回の環境準備（Windows）
 
 必要なもの：.NET 10 SDK、.NET 10に対応するAzure Functions Core Tools v4。
@@ -209,6 +222,7 @@ G05追加後（G09マージ済みmainへリベース）：`pipeline/backend/Buil
 
 G05・フロントエンドAPI接続のmainマージ後：共通If-Match検証をG05の実装に統合。形式が正しい強いETagの不一致は412とし、抽選／再抽選と中止が競合した場合に双方の勝者を保持する4ケースを追加。`pipeline/backend/Build.ps1`でオフライン495テスト成功、Release発行・発行物検査成功。エミュレーター未導入のため統合15件は理由付きスキップ。
 
+2026年10月17日（G08）：`pipeline/backend/Build.ps1`でオフライン594テスト（G08追加99件）が成功し、Release発行・発行物検査も成功。作成→同点→全員再抽選→13,800円・4人のプレビュー→保存→再送→累積額取得を認証付きHTTPテストで確認。0円、JavaScript安全整数超の累積額、オーバーフロー拒否、現在名・無効参加者、保存／中止の両勝者、条件競合、応答断、削除後の過去保存キー再生を検証した。実FunctionsホストでSavePayment/GetLossTotalsのルートと認証なし401、health 200、OPTIONS 204、no-storeを確認。エミュレーター未導入のため統合19件（G08追加4件）は理由付きスキップ。追加統合テストは実バッチの同キー／別キー同時保存、4操作それぞれの競合時ロールバック、保存／中止、応答断、別クライアントでのセッション継承・再生・集計読取を扱う。実Cosmosの原子性・RU・要求サイズ・時間枠、実テナントトークンでの成功疎通は未検証。Azure配置・本番データ書込は行っていない。
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -220,7 +234,8 @@ G05・フロントエンドAPI接続のmainマージ後：共通If-Match検証�
 - `Functions/GameCancelFunction.cs`：A13。
 - `Functions/GameDiceFunctions.cs`／`Games/GameDice.cs`：A06・A07、サーバー乱数、条件付き更新と成功応答の再生。
 - `Functions/PaymentPreviewFunction.cs`：A08。
-- `Payments/`：金額入力の検証・負担額／負け額計算（G08で再利用）。
+- `Functions/PaymentSaveFunction.cs`／`Functions/LossTotalsFunction.cs`：A09・A12。
+- `Payments/`：金額検証・計算・確定、集計の検証・現在名との組立。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。
 - `Data/CosmosHistoryStore.cs`：所有者パーティション内の履歴クエリ。
 - `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。

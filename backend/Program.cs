@@ -8,6 +8,7 @@ using Azure.Identity;
 using RollAndPay.Api.Data;
 using RollAndPay.Api.Games;
 using RollAndPay.Api.History;
+using RollAndPay.Api.Payments;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -27,6 +28,8 @@ builder.Services.AddSingleton<GameCreator>();
 builder.Services.AddSingleton<IDie, SecureDie>();
 builder.Services.AddSingleton<GameDice>();
 builder.Services.AddSingleton<GameCanceller>();
+builder.Services.AddSingleton<PaymentSaver>();
+builder.Services.AddSingleton<LossTotalsReader>();
 builder.UseMiddleware<ApiHttpMiddleware>();
 
 await builder.Build().RunAsync();

@@ -18,6 +18,6 @@ public sealed record InitialData(RosterDocument Roster, ControlDocument Control,
             new() { Id = "control", OwnerKey = ownerKey, Type = "control", SchemaVersion = 1,
                 ActiveGameId = null, UpdatedAt = now },
             new() { Id = "lossTotals", OwnerKey = ownerKey, Type = "lossTotals", SchemaVersion = 1,
-                Totals = participants.Select(p => new LossTotal(p.ParticipantId, "0")).ToArray(), UpdatedAt = now });
+                Totals = participants.Select(p => new LossTotal(p.ParticipantId, "0")).ToArray(), UpdatedAt = null });
     }
 }

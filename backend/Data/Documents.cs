@@ -36,5 +36,5 @@ public sealed record LossTotalsDocument
     public required string Type { get; init; }
     public required int SchemaVersion { get; init; }
     public required LossTotal[] Totals { get; init; }
-    public required DateTimeOffset UpdatedAt { get; init; }
+    public required DateTimeOffset? UpdatedAt { get; init; }
 }

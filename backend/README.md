@@ -1,12 +1,14 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01（認証・HTTP共通処理）とG02（DB接続・参加者取得）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加者取得・ゲーム状態取得）を実装。
 
 ## 現在の範囲
 
 `GET /api/v1/me`（A01）は管理者のAPIアクセストークンで認証し、200 `{"authorized":true,"role":"administrator"}`を返す。本文・クエリの指定は認証後に400で拒否する。A01はDBに接続しない。
 
 `GET /api/v1/participants`（A02）は本人のrosterをPoint Readし、有効な参加者をsortOrder→participantIdの順で返す。応答は`{"participants":[{"participantId":"p001","displayName":"参加者A","sortOrder":1}]}`。有効者が0〜1人でも200。本文・クエリは400、データ未配置・破損・読取セッションを満たせない場合は503。
+
+`GET /api/v1/games/active`（A04）は未完了ゲームを`{"game":<Gameまたはnull>}`で返す。`GET /api/v1/games/{gameId}`（A05）は本人のゲームと現ラウンドだけを復元し、完了・中止も取得できる。不在・所有者外は404、削除済みは410。詳細は次節を参照。
 
 `GET /api/v1/health`は認証なしで200と次のJSONを返す。
 
@@ -16,7 +18,19 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01（認証・HTTP共通�
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲームAPI、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲーム作成・更新、履歴、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+
+## ゲーム状態の取得（G03）
+
+A04/A05も管理者認証必須、本文・クエリなし。gameIdは空GUIDを除くハイフン付き36文字GUIDで、大文字は小文字に正規化してPoint Readする。不正形式は400 `INVALID_REQUEST`。固定パス`games/active`を詳細ルートより先に扱う。
+
+A05はgame→現round→gameの順に読み、最後の内部ETagが最初と同じで、保存内容も整合する場合だけ応答する。更新が入った場合は25ミリ秒待機して取り直し、最大3試行・要求全体10秒で安定しなければ503 `TEMPORARILY_UNAVAILABLE`と`Retry-After: 5`。存在するゲームのround欠落や保存形式・状態の矛盾も503。DBの404/1002（セッション未達）を不存在として扱わず、通常の404ではコンテナーの存在も確認して、接続先DB・コンテナー欠落とゲーム不存在を区別する。
+
+A04はcontrol→game→round→game再確認→control再確認を行う。ポインターがnullのときもcontrolを再確認する。controlのETagが変わったら再取得し、安定したポインターが不存在・完了・中止・削除済みゲームを指す場合は503。自動解除やDB修復はしない。未完了として返すのはrolling/tie/awaitingPaymentのみ。
+
+Gameと現RoundのID・版・所有者、保存時の参加者・順序、出目・日時・敗者・会計の整合性を検証する。当時名や保存会計を返し、現在のrosterや計算規則で上書きしない。schemaVersion=1のdeletedAt欠落はnullとして読み、削除済みはGameを公開しない。全ラウンドの走査や更新処理は行わない。
+
+Gameがある応答は`ETag: "g-<gameId>-v<revision>"`を返す。内部`_etag`と区別した単一の強いETagで、A04のgame=nullやエラーには付けない。応答にownerKey/type/schemaVersion/deletedAt等の保存用フィールドを含めない。G02の読取セッションを各Point Readで引き継ぎ、最後の読取で得た値を`X-Read-Session`に返す。
 
 ## 認証・HTTP共通処理
 
@@ -40,7 +54,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01（認証・HTTP共通�
 
 ## Cosmos DB接続と読取セッション
 
-既存インフラの`Cosmos__Endpoint`（HTTPSアカウントURL）、`Cosmos__DatabaseName`、`Cosmos__ContainerName`を読み込む。設定例は`rollpay/app`。APIにDB・コンテナー・初期データの作成処理はない。DB設定や接続が不完全でもhealth・meは利用でき、A02だけが503になる。
+既存インフラの`Cosmos__Endpoint`（HTTPSアカウントURL）、`Cosmos__DatabaseName`、`Cosmos__ContainerName`を読み込む。設定例は`rollpay/app`。APIにDB・コンテナー・初期データの作成処理はない。DB設定や接続が不完全でもhealth・meは利用でき、DBを使うA02/A04/A05が503になる。
 
 本番はシステム割当Managed Identity、Development環境はAzure CLIのログインIDで認証する。キー・接続文字列・クライアントシークレットは使わない。ローカルで実DBを読む場合は`az login --tenant <対象テナントID>`し、接続先を明示する。API起動時には接続せず、初回のDB利用時にクライアントを作り、Functionsプロセス内で再利用する。既定の本番接続先は設けない。
 
@@ -111,12 +125,16 @@ dotnet test tests/RollAndPay.Api.Tests.csproj --configuration Release
 
 G02追加後：オフライン103テスト・Release発行成功、実Functionsホストでhealth 200・participants 401・OPTIONS 204を確認。エミュレーター未導入のため統合2件はスキップし、実Cosmosでの読取・一括登録・SessionToken継承・Managed Identity/RBACは未検証。本番へのデータ登録・Azure配置は未実施。
 
+G03追加後：オフライン168テスト成功。G03の2件を含むエミュレーター統合4件は未導入のためスキップ。実FunctionsホストでA04/A05のルート、activeがActiveGame関数へ到達すること、認証なし401、health 200、OPTIONS 204を確認。実Cosmosでの復元・並行更新・権限の受入確認は未実施。統合テストは`database/tests/Test-CosmosIntegration.ps1`で実行する。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
 - `Functions/HealthFunction.cs`：ヘルスチェック。
 - `Functions/MeFunction.cs`／`OptionsFunction.cs`：A01とプリフライト。
 - `Functions/ParticipantsFunction.cs`：A02。
+- `Functions/GameReadFunctions.cs`：A04・A05。
+- `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。
 - `Authentication/`：認証設定、JWT検証と管理者認可。
 - `Data/`：Cosmosクライアント・保存モデル・所有者識別・rosterのPoint Read。
 - `Http/`：全HTTP関数に適用するWorkerミドルウェア、共通パイプラインとエラー。

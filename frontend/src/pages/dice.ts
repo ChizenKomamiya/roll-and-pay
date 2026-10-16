@@ -41,17 +41,16 @@ export async function dicePage(context: PageContext, id: string): Promise<Page> 
     views.set(participant.id, view)
     const card = button('', () => { void roll(participant.id) }, `dice-card${loser?.id === participant.id ? ' loser' : ''}`)
     card.dataset.focusKey = `die-${participant.id}`
-    card.disabled = value !== null || game.status !== 'rolling' || context.service.capabilities?.roll === false
+    card.disabled = value !== null || game.status !== 'rolling'
     card.setAttribute('aria-label', value === null ? `${participant.name}のサイコロを振る` : `${participant.name} 出目${value}${loser?.id === participant.id ? ' 敗者' : ''}`)
     card.append(el('span', '', participant.name, loser?.id === participant.id ? el('em', '', '敗者') : null), view.element, el('small', '', value === null ? 'タップして振る' : `出目 ${value} · 確定`))
     grid.append(card)
   })
   root.append(grid)
-  if (context.service.capabilities?.roll === false) root.append(el('p', 'notice', 'サイコロの抽選・振り直しは準備中です。保存済みの出目を表示しています。'), button('最新の状態を確認', () => context.refresh(), 'button secondary'))
-  if (game.status === 'rolling' && context.service.capabilities?.roll !== false) root.append(button(remaining.length === game.participants.length ? '全員まとめて振る' : `残り${remaining.length}人をまとめて振る`, () => { void roll() }), el('p', 'hint', '確定した出目は変わりません。各自の操作もできます。'))
-  if (game.status === 'tie' && context.service.capabilities?.roll !== false) root.append(el('div', 'notice', el('strong', '', '参加者全員で振り直します'), el('p', '', '前の出目にかかわらず、全員が敗者の候補です。')), button('全員で振り直す →', () => { void action.run(async () => { await context.service.nextRound(id, game.revision); if (context.isCurrent()) context.refresh() }) }))
+  if (game.status === 'rolling') root.append(button(remaining.length === game.participants.length ? '全員まとめて振る' : `残り${remaining.length}人をまとめて振る`, () => { void roll() }), el('p', 'hint', '確定した出目は変わりません。各自の操作もできます。'))
+  if (game.status === 'tie') root.append(el('div', 'notice', el('strong', '', '参加者全員で振り直します'), el('p', '', '前の出目にかかわらず、全員が敗者の候補です。')), button('全員で振り直す →', () => { void action.run(async () => { await context.service.nextRound(id, game.revision); if (context.isCurrent()) context.refresh() }) }))
   if (loser) root.append(link('会計総額を入力 →', gamePath(id, 'payment'), 'button primary'), el('p', 'hint', '敗者確定後は振り直せません。'))
-  if (context.service.capabilities?.roll === true) root.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))
+  if (context.service.mode === 'api') root.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))
   root.append(link('ホームへ戻る（ゲームは保持）', '/home', 'back lower-back'))
   return { element: root, dispose: () => views.forEach(view => view.dispose()) }
 }

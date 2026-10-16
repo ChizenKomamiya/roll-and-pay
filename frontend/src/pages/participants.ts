@@ -22,7 +22,6 @@ export async function participantsPage(context: PageContext): Promise<Page> {
   root.append(form)
   if (pending) root.append(el('p', 'notice', '直前の作成結果が未確認です。同じメンバーで再送できます。'))
   if (participants.length < 2) root.append(el('p', 'notice', '有効な参加者が2人以上必要です。参加者の登録を確認してください。'))
-  if (context.service.capabilities?.save === false) root.append(el('p', 'notice', 'ゲームの作成・抽選・振り直し・負担額の確認を利用できます。中止・金額の保存は準備中です。'))
   update()
   return { element: root }
 }

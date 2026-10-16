@@ -157,12 +157,4 @@ describe('実APIの画面サービス', () => {
     await expect(service.get(gameId)).rejects.toThrow('形式')
     await expect(service.get(gameId)).rejects.toThrow('形式')
   })
-  it('未実装の操作は通信しない', async () => {
-    const { service, fetcher } = setup()
-    await expect(service.save(gameId, 1, 7800)).rejects.toThrow('準備中')
-    await expect(service.cancel(gameId, 1)).rejects.toThrow('準備中')
-    await expect(service.delete(gameId, 1)).rejects.toThrow('準備中')
-    await expect(service.totals()).rejects.toThrow('準備中')
-    expect(fetcher).not.toHaveBeenCalled()
-  })
 })

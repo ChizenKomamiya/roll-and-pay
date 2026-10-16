@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加者取得・ゲーム状態取得）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）を実装。
 
 ## 現在の範囲
 
@@ -18,7 +18,21 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲーム作成・更新、履歴、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲーム更新、履歴、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+
+## ゲーム作成（G04）
+
+`POST /api/v1/games`（A03）は管理者認証と`Idempotency-Key: <空でないUUIDのD形式>`が必須。本文は`{"participantIds":["p001","p002"]}`で、2〜6名の有効な固定参加者を選択順に指定する。キー欠落428、形式不正400、本文の値・未知／重複フィールド422、JSON以外415、本文16 KiB超過413。クエリ・A03では使用しないIf-Matchは400で拒否する。
+
+201でrevision=1・rollingのGame、全員未抽選の第1ラウンド、公開ETag、`Location: /api/v1/games/{gameId}`、`Idempotency-Replayed: false`を返す。rosterから当時名を複写し、選択順を1から保存する。game/round1のCreate、内部ETag条件付きのcontrol/rosterのReplace、commandのCreateの5操作を同一所有者のバッチでコミットする。rosterの値は変えず、名前・有効状態の並行変更を検出する。
+
+成功操作記録は業務検証より前に読む。HTTPメソッド・正規化した完全パス・正規化JSON・元If-MatchのSHA-256を比較し、同じ要求なら保存済みの201／完全な本文／ETag／Locationを返す。JSONの空白とプロパティ順を無視し、配列順は区別する。キーは大文字小文字を正規化する。再生時は`Idempotency-Replayed: true`で、現在のrosterやゲーム状態へ追随せず、DBを再更新しない。要求内容が異なる同キー使用は409 `IDEMPOTENCY_KEY_REUSED`。成功記録には内部ETag・読取セッション・requestIdを保存せず、TTLなしで保持する。
+
+既存の未完了ゲームがある場合はcontrolとゲーム・現roundを整合性確認し、409 `ACTIVE_GAME_EXISTS`と`details[0].gameId`を返す。壊れたポインターは503で停止する。条件付きバッチの409/412は同キー記録の確認からやり直し、最大3回バッチを実行、要求全体10秒で打ち切る。参加者マスターが変わった場合も再検証する。SDKの依存失敗424を直接公開せず、実際の失敗を429/503または競合の再確認に変換する。
+
+503の通信失敗後は成功記録を照会し、見つかれば再生する。要求期限に達した場合など確認できなければ503を返すため、クライアントは元のキーと本文を保持して再送する。タイムアウトを未コミットとは断定しない。DBの最新セッションは読取・バッチ・再生とも`X-Read-Session`へ継承する。
+
+最大100名のroster（ID40文字・名前50文字）と6名選択の5保存ドキュメント合計が128 KiB以下であることを自動検証する。SDKのバッチ付帯情報を含む実要求サイズ・RU・時間枠は実Cosmosで未計測。
 
 ## ゲーム状態の取得（G03）
 
@@ -127,6 +141,10 @@ G02追加後：オフライン103テスト・Release発行成功、実Functions�
 
 G03追加後：オフライン168テスト成功。G03の2件を含むエミュレーター統合4件は未導入のためスキップ。実FunctionsホストでA04/A05のルート、activeがActiveGame関数へ到達すること、認証なし401、health 200、OPTIONS 204を確認。実Cosmosでの復元・並行更新・権限の受入確認は未実施。統合テストは`database/tests/Test-CosmosIntegration.ps1`で実行する。
 
+G04追加後：オフライン214テスト成功、Release発行成功、ローカル設定・テスト・初期登録ツールの発行混入なし。G04で追加した統合3件を含む計7件はエミュレーター未導入のためスキップ。G04の統合テストは同キー／別キー同時作成、rosterのETag競合による全件ロールバック、コミット後応答断、別クライアントのセッション継承と再生を実DBで確認する内容で、既存の実行入口を使う。モック／メモリー上の成功を実DBの原子性の証明として扱わない。Managed Identity/RBAC・実テナントのトークンによるA03成功疎通は未実施。
+
+実Functionsホストでも`CreateGame: [POST] /api/v1/games`の登録、POSTの認証なし401と共通応答ヘッダー、health 200、OPTIONS 204を確認。Azure配置・本番データへの書込は実施していない。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -134,10 +152,12 @@ G03追加後：オフライン168テスト成功。G03の2件を含むエミュ�
 - `Functions/MeFunction.cs`／`OptionsFunction.cs`：A01とプリフライト。
 - `Functions/ParticipantsFunction.cs`：A02。
 - `Functions/GameReadFunctions.cs`：A04・A05。
+- `Functions/GameCreateFunction.cs`：A03。
 - `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。
 - `Authentication/`：認証設定、JWT検証と管理者認可。
 - `Data/`：Cosmosクライアント・保存モデル・所有者識別・rosterのPoint Read。
 - `Http/`：全HTTP関数に適用するWorkerミドルウェア、共通パイプラインとエラー。
+- `Http/UpdateRequest.cs`／`Data/CosmosBatchWriter.cs`：更新要求の形式・ハッシュ、条件付きバッチとSDKエラー変換。G04で必要な範囲だけを実装し、後続の更新APIは各グループで追加する。
 - `tests/`：認証・HTTPの自動テスト（発行対象外）。
 - `RollAndPay.Api.csproj`：SDKと依存パッケージ。
 - `host.json`：Functionsホスト設定。

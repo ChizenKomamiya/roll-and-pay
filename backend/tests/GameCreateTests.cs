@@ -288,4 +288,3 @@ public sealed class GameCreateTests(TokenFixture tokens) : IClassFixture<TokenFi
         Assert.NotEqual(UpdateRequest.Hash("DELETE", "/x", null, null), UpdateRequest.Hash("DELETE", "/x", empty.RootElement, null));
     }
 }
-

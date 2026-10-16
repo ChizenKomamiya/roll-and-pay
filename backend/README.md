@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）、G07（金額プレビュー）、G09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）、G06（抽選・再抽選）、G07（金額プレビュー）、G09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -20,7 +20,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲーム更新、金額確定、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲーム中止、金額確定、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
 
 ## ゲーム作成（G04）
 
@@ -35,6 +35,20 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 503の通信失敗後は成功記録を照会し、見つかれば再生する。要求期限に達した場合など確認できなければ503を返すため、クライアントは元のキーと本文を保持して再送する。タイムアウトを未コミットとは断定しない。DBの最新セッションは読取・バッチ・再生とも`X-Read-Session`へ継承する。
 
 最大100名のroster（ID40文字・名前50文字）と6名選択の5保存ドキュメント合計が128 KiB以下であることを自動検証する。SDKのバッチ付帯情報を含む実要求サイズ・RU・時間枠は実Cosmosで未計測。
+
+## サイコロ・再抽選（G06）
+
+A06 `POST /api/v1/games/{gameId}/rolls` とA07 `POST /api/v1/games/{gameId}/rounds` は管理者認証、`Idempotency-Key`、単一の強いゲームETagの`If-Match`が必須。欠落428、不正ヘッダー・不正JSON・クエリ400、未知／重複フィールドや不正値422、JSON以外415、本文16 KiB超過413。ラウンド番号は正のJSON整数とする。
+
+A06は`{"roundNumber":1,"mode":"individual","participantId":"p001"}`または`{"roundNumber":1,"mode":"remaining"}`。rollingの現ラウンドだけを対象に、暗号学的乱数で1〜6の出目を確定する。一括では未抽選者だけを振り、確定済みの値と日時を保持する。未抽選者がいれば判定せず、全員完了時に最小値が一名ならawaitingPaymentと敗者、複数ならtieと最小同点者を保存する。最小以外の同点は再抽選しない。200で更新後のGameを返す。
+
+A07は`{"previousRoundNumber":1}`。tieかつ現番号一致のときだけ、参加者全員が未抽選の次ラウンドを作りrollingへ戻す。乱数は生成しない。旧ラウンドの全出目・日時・同点対象者を保持し、201 Gameと`Location: /api/v1/games/{gameId}`を返す。ラウンド回数について業務上の上限は設けず、全ラウンド取得APIは公開しない。
+
+同じ所有者の3操作を条件付きバッチにまとめる。A06はroundとgameを内部ETag条件付きReplace、commandをCreate。A07は新roundとcommandをCreate、gameを条件付きReplaceする。control・roster・累積額は変更しない。公開revisionを一回加算し、ETag・最新の`X-Read-Session`・`Idempotency-Replayed`を返す。
+
+成功commandを存在・削除・版・業務状態の検証より先に照会し、同じ要求は元のステータス・本文・ETag・Locationを再生する。別要求へのキー流用409、本人以外／不存在404、削除済み410、公開版不一致412、状態不正409、旧ラウンド409、抽選済み409、参加者外ID422。条件競合後も元If-Matchを保持し、競合した操作を新しい版へ自動適用しない。最大3試行・全体10秒。コミット後の応答断はcommandから確認し、確認不能なら503として同じ要求の再送を案内する。
+
+`Games/GameDice.cs`の`IDie`は判定テストでのみ差し替える。本番は`RandomNumberGenerator.GetInt32(1, 7)`を使い、乱数を指定できるHTTP入力や設定は設けない。オフラインで判定・部分抽選・混在操作・旧ラウンド拒否・競合・再送・失敗時の未更新・HTTP契約を検証する。`tests/GameDiceIntegrationTests.cs`には実バッチの同時操作、全件ロールバック、応答断、別クライアントへの読取セッション継承の3テストを追加。実行入口は`database/tests/Test-CosmosIntegration.ps1`で、HTTPS loopbackのエミュレーターだけを使う。端末にエミュレーターがないため、実DBの原子性・RU・実テナント疎通は未検証。
 
 ## ゲーム状態の取得（G03）
 
@@ -179,6 +193,8 @@ G04のmainマージ取り込み後：オフライン302テスト成功、Release
 
 G07のmainマージ取り込み後：オフライン368テスト成功、Release発行・発行物検査成功。金額プレビューと履歴参照の資料を統合。エミュレーター未導入のため統合9件は未実施（スキップ）。
 
+2026年10月16日（G06）：G09（PR #6）マージ後のmainへリベースし、オフライン426テスト（G06追加58件）、Release発行・発行物検査に成功。Core Toolsの実FunctionsホストでRollDice/CreateRoundのPOSTルート、認証なし401、health 200、no-storeを確認。エミュレーター未導入のため統合12件（G06追加3件）は未実施（スキップ）。Azureへの配置・実データへの書込は実施していない。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -187,6 +203,7 @@ G07のmainマージ取り込み後：オフライン368テスト成功、Release
 - `Functions/ParticipantsFunction.cs`：A02。
 - `Functions/GameReadFunctions.cs`：A04・A05。
 - `Functions/GameCreateFunction.cs`：A03。
+- `Functions/GameDiceFunctions.cs`／`Games/GameDice.cs`：A06・A07、サーバー乱数、条件付き更新と成功応答の再生。
 - `Functions/PaymentPreviewFunction.cs`：A08。
 - `Payments/`：金額入力の検証・負担額／負け額計算（G08で再利用）。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。

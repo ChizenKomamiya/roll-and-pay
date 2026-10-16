@@ -8,6 +8,17 @@ namespace RollAndPay.Api.Http;
 public static class UpdateRequest
 {
     public const int MaxBodyBytes = 16 * 1024;
+    public static string IfMatch(HttpRequest request)
+    {
+        if (!request.Headers.TryGetValue("If-Match", out var values))
+            throw new ApiException(428, "PRECONDITION_REQUIRED", "If-Matchを指定してください。");
+        if (values.Count != 1 || values[0] is not { } value ||
+            !System.Text.RegularExpressions.Regex.IsMatch(value, "^\"g-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-v[1-9][0-9]*\"$", System.Text.RegularExpressions.RegexOptions.CultureInvariant) ||
+            !long.TryParse(value.AsSpan(41, value.Length - 42), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _))
+            throw new ApiException(400, "INVALID_REQUEST", "単一の強いゲームETagを指定してください。");
+        return value;
+    }
+
     public static Guid Key(HttpRequest request)
     {
         if (!request.Headers.TryGetValue("Idempotency-Key", out var values))

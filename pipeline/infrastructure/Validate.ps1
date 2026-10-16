@@ -16,6 +16,8 @@ $previous = @{}
 try {
     pwsh -NoProfile -File ./infra/tests/Test-EntraScripts.ps1
     if ($LASTEXITCODE -ne 0) { throw 'Entra offline tests failed.' }
+    pwsh -NoProfile -File ./infra/tests/Test-BackendDeploymentIdentity.ps1
+    if ($LASTEXITCODE -ne 0) { throw 'Backend deployment identity offline tests failed.' }
     az bicep install --only-show-errors
     if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
     New-Item -ItemType Directory -Path infra/build -Force | Out-Null

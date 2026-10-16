@@ -2,10 +2,11 @@ using Microsoft.AspNetCore.Http;
 
 namespace RollAndPay.Api.Http;
 
-public sealed class ApiException(int statusCode, string code, string message) : Exception(message)
+public sealed class ApiException(int statusCode, string code, string message, int? retryAfterSeconds = null) : Exception(message)
 {
     public int StatusCode { get; } = statusCode;
     public string Code { get; } = code;
+    public int? RetryAfterSeconds { get; } = retryAfterSeconds;
 }
 
 public sealed record ApiErrorDetail(string Field, string Reason);

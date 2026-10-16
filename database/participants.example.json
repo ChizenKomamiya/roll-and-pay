@@ -1,0 +1,7 @@
+{
+  "participants": [
+    { "participantId": "p001", "displayName": "参加者A", "sortOrder": 1, "isActive": true },
+    { "participantId": "p002", "displayName": "参加者B", "sortOrder": 2, "isActive": true },
+    { "participantId": "p003", "displayName": "参加者C", "sortOrder": 3, "isActive": false }
+  ]
+}

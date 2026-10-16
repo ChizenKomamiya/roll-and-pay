@@ -16,7 +16,7 @@ try {
     $unexpected = Get-ChildItem -LiteralPath (Join-Path $backendPath 'bin/ci-publish') -Recurse -Filter 'local.settings*.json'
     if ($unexpected) { throw 'Local configuration must not be included in the deployment.' }
     $testArtifacts = Get-ChildItem -LiteralPath (Join-Path $backendPath 'bin/ci-publish') -Recurse -File |
-        Where-Object { $_.Name -match 'RollAndPay\.Api\.Tests|xunit|testhost' -or $_.FullName -match '[\\/]tests[\\/]' }
+        Where-Object { $_.Name -match 'RollAndPay\.Api\.Tests|RollAndPay\.Seed|xunit|testhost|Moq|Castle\.Core' -or $_.FullName -match '[\\/]tests[\\/]' }
     if ($testArtifacts) { throw 'Test artifacts must not be included in the deployment.' }
 }
 finally { Pop-Location }

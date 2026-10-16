@@ -52,7 +52,9 @@ Functionsの共有キー・公開プロファイルは使わず、Azure/loginの
 
 Azure側で当該Function Appへのコード配置に必要な権限を付与する（公式例のWebsite Contributor等を対象スコープで確認）。リソース作成・DBデータへの権限をバックエンド配置IDへ一括付与しない。PRではAzure/login・配置のステップを実行しない。
 
-`.NET 10`で`backend/tests/RollAndPay.Api.Tests.csproj`のテスト後に`dotnet publish`し、`backend/bin/ci-publish`を`Azure/functions-action`で既存アプリに発行する。`local.settings*.json`とテスト資材の発行除外を確認してから配置する。G01では匿名ヘルスチェックに加えて管理者認証・HTTP共通処理・`GET /api/v1/me`・OPTIONSを実装。DB接続とA02以降は後続グループで対応する。PRはテスト・発行物の確認だけを行い、Azureへ配置しない。
+`.NET 10`で`backend/tests/RollAndPay.Api.Tests.csproj`のテスト後に`dotnet publish`し、`backend/bin/ci-publish`を`Azure/functions-action`で既存アプリに発行する。`local.settings*.json`・テスト資材・初期登録ツールの発行除外を確認してから配置する。G01は管理者認証・HTTP共通処理・A01、G02はDB接続・読取セッション・A02を実装。PRはテスト・発行物の確認だけを行い、Azureへ配置しない。エミュレーター統合2件は通常のCIでスキップし、別途ローカル実行する。
+
+Database CIは.NET 10で初期登録ツールの入力検証・バッチ構築のテストも実行する。登録ツールはAPIの保存モデルを参照するため、APIプロジェクトを直接restoreしてからテストする。CIから参加者データを投入せず、専用ツールの実行は[databaseの手順](../database/README.md)に従う。
 
 ## インフラ・DB：検証と手動反映
 

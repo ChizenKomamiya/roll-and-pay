@@ -6,7 +6,10 @@
     "Auth__ApiClientId": "<api-client-guid>",
     "Auth__AllowedSpaClientId": "<spa-client-guid>",
     "Auth__AdministratorObjectId": "<administrator-user-object-guid>",
-    "Auth__RequiredScope": "access_as_user"
+    "Auth__RequiredScope": "access_as_user",
+    "Cosmos__Endpoint": "https://<account>.documents.azure.com:443/",
+    "Cosmos__DatabaseName": "rollpay",
+    "Cosmos__ContainerName": "app"
   },
   "Host": {
     "CORS": "http://localhost:5173",

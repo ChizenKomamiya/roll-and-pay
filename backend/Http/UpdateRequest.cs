@@ -11,11 +11,13 @@ public static class UpdateRequest
     public static string IfMatch(HttpRequest request)
     {
         if (!request.Headers.TryGetValue("If-Match", out var values))
-            throw new ApiException(428, "PRECONDITION_REQUIRED", "If-Matchを指定してください。");
-        if (values.Count != 1 || values[0] is not { } value ||
-            !System.Text.RegularExpressions.Regex.IsMatch(value, "^\"g-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-v[1-9][0-9]*\"$", System.Text.RegularExpressions.RegexOptions.CultureInvariant) ||
-            !long.TryParse(value.AsSpan(41, value.Length - 42), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _))
-            throw new ApiException(400, "INVALID_REQUEST", "単一の強いゲームETagを指定してください。");
+            throw new ApiException(428, "PRECONDITION_REQUIRED", "ゲームのETagを指定してください。");
+        // A single strong opaque tag. Preserve its exact value in the request hash.
+        var value = values.Count == 1 ? values[0] : null;
+        if (value is null || value.Length < 2 || value[0] != '"' || value[^1] != '"' ||
+            value.AsSpan(1, value.Length - 2).ContainsAnyExceptInRange((char)0x21, (char)0x7e) ||
+            value.AsSpan(1, value.Length - 2).Contains('"'))
+            throw new ApiException(400, "INVALID_REQUEST", "単一の強いETagを指定してください。");
         return value;
     }
 

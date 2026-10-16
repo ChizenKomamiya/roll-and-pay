@@ -26,6 +26,7 @@ builder.Services.AddSingleton<ICosmosBatchWriter, CosmosBatchWriter>();
 builder.Services.AddSingleton<GameCreator>();
 builder.Services.AddSingleton<IDie, SecureDie>();
 builder.Services.AddSingleton<GameDice>();
+builder.Services.AddSingleton<GameCanceller>();
 builder.UseMiddleware<ApiHttpMiddleware>();
 
 await builder.Build().RunAsync();

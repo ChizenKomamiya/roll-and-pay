@@ -270,7 +270,6 @@ public sealed class GameDiceTests(TokenFixture tokens) : IClassFixture<TokenFixt
     [InlineData("weak", 400)]
     [InlineData("wildcard", 400)]
     [InlineData("multiple", 400)]
-    [InlineData("overflow", 400)]
     [InlineData("media", 415)]
     [InlineData("oversize", 413)]
     [InlineData("query", 400)]
@@ -281,11 +280,68 @@ public sealed class GameDiceTests(TokenFixture tokens) : IClassFixture<TokenFixt
         if (fault != "missing-auth") client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.Token(d => { if (fault == "forbidden") d.Claims["oid"] = Guid.NewGuid().ToString(); }));
         if (fault != "missing-key") client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString());
         if (fault != "missing-etag") client.DefaultRequestHeaders.TryAddWithoutValidation("If-Match", fault switch
-            { "weak" => "W/" + Etag(), "wildcard" => "*", "multiple" => Etag() + "," + Etag(), "overflow" => Etag().Replace("v4", "v999999999999999999999999"), _ => Etag() });
+            { "weak" => "W/" + Etag(), "wildcard" => "*", "multiple" => Etag() + "," + Etag(), _ => Etag() });
         if (fault == "session") client.DefaultRequestHeaders.Add("X-Read-Session", "bad=");
         var response = await client.PostAsync($"/api/v1/games/{GameFixture.Id:D}/rolls" + (fault == "query" ? "?x=1" : ""),
             new StringContent(fault == "oversize" ? new string(' ', 16385) : "{\"roundNumber\":1,\"mode\":\"remaining\"}", Encoding.UTF8, fault == "media" ? "text/plain" : "application/json"));
         Assert.Equal(status, (int)response.StatusCode); Assert.Equal(0, store.Reads);
+    }
+
+    [Theory]
+    [InlineData(false, "\"other-tag\"")]
+    [InlineData(true, "\"other-tag\"")]
+    [InlineData(false, "\"g-7c56e8d0-1a58-4c45-8ef3-6505ad5c0a01-v999999999999999999999999\"")]
+    [InlineData(true, "\"g-7c56e8d0-1a58-4c45-8ef3-6505ad5c0a01-v999999999999999999999999\"")]
+    public async Task Well_formed_non_matching_strong_etags_are_version_conflicts(bool next, string etag)
+    {
+        var store = Store(next ? "tie" : "rolling"); var die = new SequenceDie();
+        using var server = Server(store, die); using var client = server.GetTestClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.Token());
+        client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        client.DefaultRequestHeaders.TryAddWithoutValidation("If-Match", etag);
+        var body = next ? "{\"previousRoundNumber\":1}" : "{\"roundNumber\":1,\"mode\":\"remaining\"}";
+        var response = await client.PostAsync($"/api/v1/games/{GameFixture.Id:D}/{(next ? "rounds" : "rolls")}", new StringContent(body, Encoding.UTF8, "application/json"));
+        Assert.Equal(412, (int)response.StatusCode); Assert.Equal(0, die.Calls); Assert.Equal(0, store.Writes);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VERSION_MISMATCH", json.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Cancellation_racing_with_roll_or_next_round_preserves_the_winner(bool next, bool cancelFirst)
+    {
+        var store = Store(next ? "tie" : "rolling");
+        store.Put(GameFixture.Control(GameFixture.Id), "control");
+        var round = store.Documents[$"round:{GameFixture.Id:D}:1"];
+        var die = new SequenceDie(6);
+        store.BeforeWrite = s =>
+        {
+            s.BeforeWrite = null;
+            if (cancelFirst) GameCancelTests.Cancel(s).GetAwaiter().GetResult();
+            else Run(s, die, next: next).GetAwaiter().GetResult();
+        };
+        var error = cancelFirst
+            ? await Assert.ThrowsAsync<ApiException>(() => Run(store, die, next: next))
+            : await Assert.ThrowsAsync<ApiException>(() => GameCancelTests.Cancel(store));
+        Assert.Equal(412, error.StatusCode); Assert.Equal(5, Game(store).Revision);
+        Assert.Single(store.Documents.Values, d => d.Document is CommandDocument);
+        var control = (ControlDocument)store.Documents["control"].Document;
+        if (cancelFirst)
+        {
+            Assert.Equal("cancelled", Game(store).Status); Assert.Null(control.ActiveGameId);
+            Assert.Equal(round, store.Documents[$"round:{GameFixture.Id:D}:1"]);
+            Assert.False(store.Documents.ContainsKey($"round:{GameFixture.Id:D}:2"));
+        }
+        else
+        {
+            Assert.Equal(next ? "rolling" : "awaitingPayment", Game(store).Status); Assert.Equal(GameFixture.Id, control.ActiveGameId);
+            if (next) Assert.Equal(round, store.Documents[$"round:{GameFixture.Id:D}:1"]);
+            else Assert.Equal(6, Round(store).Rolls[1].Value);
+        }
+        Assert.True(GameReadValidation.Snapshot(Game(store), Round(store, Game(store).CurrentRoundNumber), DataTests.Owner));
     }
 
     [Theory]

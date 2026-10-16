@@ -41,6 +41,12 @@ jobs:
         run: npm install --global pnpm@11.25.0
       - name: Install, test and build frontend
         shell: pwsh
+        env:
+          VITE_APP_MODE: ${{ vars.VITE_APP_MODE || 'demo' }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
+          VITE_ENTRA_SPA_CLIENT_ID: ${{ vars.VITE_ENTRA_SPA_CLIENT_ID }}
+          VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE }}
         run: ./pipeline/frontend/Build.ps1
       - name: Check deployment secret
         if: github.event_name != 'pull_request'

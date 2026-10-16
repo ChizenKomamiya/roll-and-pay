@@ -158,4 +158,4 @@ PR作成後はこの文書末尾の進捗表へURLと状態を記録する。依
 | G07 | mainへマージ済み。オフライン280件検証済み。実Cosmos・実テナント疎通は未実施 | [#4](https://github.com/ChizenKomamiya/roll-and-pay/pull/4) |
 | G08 | mainへマージ済み。オフライン594件検証済み。G08のエミュレーター統合4件は未実施 | [#14](https://github.com/ChizenKomamiya/roll-and-pay/pull/14) |
 | G09 | mainへマージ済み。G09のエミュレーター統合2件は未実施 | [#6](https://github.com/ChizenKomamiya/roll-and-pay/pull/6) |
-| G10 | 実装・オフライン646件検証済み。G10のエミュレーター統合4件は未実施。PR作成準備中 | — |
+| G10 | 実装・オフライン646件検証済み、レビュー待ち（未マージ）。G10のエミュレーター統合4件は未実施 | [#15](https://github.com/ChizenKomamiya/roll-and-pay/pull/15) |

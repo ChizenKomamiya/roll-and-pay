@@ -28,7 +28,7 @@ export async function dicePage(context: PageContext, id: string): Promise<Page> 
       try {
         const updated: Game = await context.service.roll(id, game.revision, participantId)
         const next = currentRound(updated)
-        await Promise.all([...views].filter(([pid]) => round.rolls[pid] === null && next.rolls[pid] !== null).map(([pid, view]) => view.play(next.rolls[pid]!)))
+        if (next.number === round.number) await Promise.all([...views].filter(([pid]) => round.rolls[pid] === null && next.rolls[pid] !== null).map(([pid, view]) => view.play(next.rolls[pid]!)))
         if (context.isCurrent()) context.refresh()
       } catch (error) {
         status.textContent = previousStatus
@@ -51,6 +51,7 @@ export async function dicePage(context: PageContext, id: string): Promise<Page> 
   if (game.status === 'rolling' && context.service.capabilities?.roll !== false) root.append(button(remaining.length === game.participants.length ? '全員まとめて振る' : `残り${remaining.length}人をまとめて振る`, () => { void roll() }), el('p', 'hint', '確定した出目は変わりません。各自の操作もできます。'))
   if (game.status === 'tie' && context.service.capabilities?.roll !== false) root.append(el('div', 'notice', el('strong', '', '参加者全員で振り直します'), el('p', '', '前の出目にかかわらず、全員が敗者の候補です。')), button('全員で振り直す →', () => { void action.run(async () => { await context.service.nextRound(id, game.revision); if (context.isCurrent()) context.refresh() }) }))
   if (loser) root.append(link('会計総額を入力 →', gamePath(id, 'payment'), 'button primary'), el('p', 'hint', '敗者確定後は振り直せません。'))
+  if (context.service.capabilities?.roll === true) root.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))
   root.append(link('ホームへ戻る（ゲームは保持）', '/home', 'back lower-back'))
   return { element: root, dispose: () => views.forEach(view => view.dispose()) }
 }

@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）、G07（金額プレビュー）、G09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G05（認証・参加者取得・ゲーム状態取得・作成・中止）、G07（金額プレビュー）、G09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -20,7 +20,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲーム更新、金額確定、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+抽選・再抽選、金額確定、累積額取得、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
 
 ## ゲーム作成（G04）
 
@@ -35,6 +35,16 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 503の通信失敗後は成功記録を照会し、見つかれば再生する。要求期限に達した場合など確認できなければ503を返すため、クライアントは元のキーと本文を保持して再送する。タイムアウトを未コミットとは断定しない。DBの最新セッションは読取・バッチ・再生とも`X-Read-Session`へ継承する。
 
 最大100名のroster（ID40文字・名前50文字）と6名選択の5保存ドキュメント合計が128 KiB以下であることを自動検証する。SDKのバッチ付帯情報を含む実要求サイズ・RU・時間枠は実Cosmosで未計測。
+
+## ゲーム中止（G05）
+
+`POST /api/v1/games/{gameId}/cancel`（A13）は管理者認証、`Idempotency-Key`、単一の強い`If-Match`、UTF-8のJSON本文`{}`が必須。キー／If-Match欠落428、形式不正・クエリ・不正gameIdは400。空本文や不正JSONは400、空オブジェクト以外・未知フィールド422、Content-Type不正415、16 KiB超過413。ゲームIDとキーはGUIDのD形式を小文字へ正規化する。
+
+rolling/tie/awaitingPaymentからcancelledへ遷移し、revisionを一つ増やし、サーバー時刻をupdatedAt/cancelledAtへ保存する。出目・同点者・確定済み敗者・当時名・参加者順序・現ラウンドを保持し、paymentはnull。200のGameと新ETag、`Idempotency-Replayed: false`、最新`X-Read-Session`を返す。gameとcontrolの内部ETag条件付きReplace、成功commandのCreateを同一所有者の3操作バッチでコミットし、round・roster・lossTotalsは更新しない。
+
+G04と共通の`CommandStore`で成功記録を先に照会し、同じメソッド・正規化パス・空オブジェクト・元If-Matchなら200／本文／ETagを再生する。再生時は`Idempotency-Replayed: true`。新しいゲームを開始した後でも元の中止結果を返し、新しいcontrolを解除しない。異なる対象・If-Matchや別操作での同キー使用は409 `IDEMPOTENCY_KEY_REUSED`。
+
+記録がなければ不在／所有者外404、削除済み410、元If-Match不一致412、完了・中止済み409の順で判定する。game→round→control→game再確認で途中の更新を検知し、古い版へ自動追随しない。controlが欠落・別ゲーム・null、保存データ不整合は503で停止し、自動修復しない。内部ETag競合時は成功記録から再確認し、同キーは再生、ゲームが更新済みなら412。controlのみの競合は元のゲーム版を維持して最大3回バッチ、全体10秒以内で再試行する。コミット後の503通信断は成功記録で照合し、確認不能なら503として元のキー・If-Matchでの再送を維持する。金額保存APIとの競合確認はG08で追加する。
 
 ## ゲーム状態の取得（G03）
 
@@ -179,6 +189,8 @@ G04のmainマージ取り込み後：オフライン302テスト成功、Release
 
 G07のmainマージ取り込み後：オフライン368テスト成功、Release発行・発行物検査成功。金額プレビューと履歴参照の資料を統合。エミュレーター未導入のため統合9件は未実施（スキップ）。
 
+G05追加後（G09マージ済みmainへリベース）：`pipeline/backend/Build.ps1`でオフライン430テスト成功（G05追加62件）、Release発行・発行物検査成功。未完了3状態、出目・敗者保持、ポインター解除、同キー再送・別キー競合・キー使い回し、読取中の更新、条件競合の打切り、応答断、DB更新前の失敗、新ゲーム開始後の過去キー再送、セッション継承、HTTPの入力・認証境界を確認。実FunctionsホストでCancelGameルートと関数への到達、認証なし401、health 200、OPTIONS 204、共通応答ヘッダーを確認。エミュレーター未導入のためG05追加3件を含む統合12件は理由付きスキップ。実Cosmosの原子性・ETag・セッション、Managed Identity/RBAC、実テナントのトークンによるA13成功疎通は未検証。保存／中止の競合確認はG08で追加する。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -187,6 +199,7 @@ G07のmainマージ取り込み後：オフライン368テスト成功、Release
 - `Functions/ParticipantsFunction.cs`：A02。
 - `Functions/GameReadFunctions.cs`：A04・A05。
 - `Functions/GameCreateFunction.cs`：A03。
+- `Functions/GameCancelFunction.cs`：A13。
 - `Functions/PaymentPreviewFunction.cs`：A08。
 - `Payments/`：金額入力の検証・負担額／負け額計算（G08で再利用）。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。

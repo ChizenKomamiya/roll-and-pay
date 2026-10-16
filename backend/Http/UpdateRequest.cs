@@ -8,6 +8,19 @@ namespace RollAndPay.Api.Http;
 public static class UpdateRequest
 {
     public const int MaxBodyBytes = 16 * 1024;
+    public static string IfMatch(HttpRequest request)
+    {
+        if (!request.Headers.TryGetValue("If-Match", out var values))
+            throw new ApiException(428, "PRECONDITION_REQUIRED", "ゲームのETagを指定してください。");
+        // A single strong opaque tag. Preserve its exact value in the request hash.
+        var value = values.Count == 1 ? values[0] : null;
+        if (value is null || value.Length < 2 || value[0] != '"' || value[^1] != '"' ||
+            value.AsSpan(1, value.Length - 2).ContainsAnyExceptInRange((char)0x21, (char)0x7e) ||
+            value.AsSpan(1, value.Length - 2).Contains('"'))
+            throw new ApiException(400, "INVALID_REQUEST", "単一の強いETagを指定してください。");
+        return value;
+    }
+
     public static Guid Key(HttpRequest request)
     {
         if (!request.Headers.TryGetValue("Idempotency-Key", out var values))

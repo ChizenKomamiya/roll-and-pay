@@ -8,6 +8,7 @@ public sealed record CommandResponse(CommandDocument Command, bool Replayed);
 
 public sealed class GameCreator(ICosmosPointReader store, ICosmosBatchWriter writer, GameReader reader)
 {
+    private readonly CommandStore commands = new(store);
     public async Task<CommandResponse> CreateAsync(string owner, Guid key, string hash, string[] ids, ReadSession session, CancellationToken cancellationToken)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -19,9 +20,9 @@ public sealed class GameCreator(ICosmosPointReader store, ICosmosBatchWriter wri
             {
                 var previous = await Replay(owner, key, hash, session, token);
                 if (previous is not null) return previous;
-                var roster = await Read<RosterDocument>(owner, "roster", session, token);
+                var roster = await commands.Read<RosterDocument>(owner, "roster", session, token);
                 if (!RosterValidation.IsValid(roster.Document, owner)) throw CosmosErrors.Unavailable();
-                var control = await Read<ControlDocument>(owner, "control", session, token);
+                var control = await commands.Read<ControlDocument>(owner, "control", session, token);
                 if (control.Document is null || !GameReadValidation.Control(control.Document, owner)) throw CosmosErrors.Unavailable();
                 if (control.Document.ActiveGameId is not null)
                 {
@@ -88,24 +89,12 @@ public sealed class GameCreator(ICosmosPointReader store, ICosmosBatchWriter wri
 
     private async Task<CommandResponse?> Replay(string owner, Guid key, string hash, ReadSession session, CancellationToken token)
     {
-        var command = (await Read<CommandDocument>(owner, $"command:{key:D}", session, token)).Document;
+        var command = await commands.Find(owner, key, hash, session, token);
         if (command is null) return null;
-        if (command.OwnerKey != owner || command.Id != $"command:{key:D}" || command.Type != "command" || command.SchemaVersion != 1 ||
-            command.GameId == Guid.Empty || command.CreatedAt == default || command.CreatedAt.Offset != TimeSpan.Zero ||
-            command.RequestHash is not { Length: 64 } || command.RequestHash.Any(c => !char.IsAsciiHexDigit(c))) throw CosmosErrors.Unavailable();
-        if (command.RequestHash != hash) throw new ApiException(409, "IDEMPOTENCY_KEY_REUSED", "冪等性キーは別の要求に使用されています。");
         if (command.Operation != "createGame" || command.ResponseStatus != 201 || command.ResponseEtag != GameEtag.Create(command.GameId, 1) ||
             command.ResponseLocation != $"/api/v1/games/{command.GameId:D}" || command.ResponseBody.ValueKind != JsonValueKind.Object)
             throw CosmosErrors.Unavailable();
         return new(command, true);
-    }
-
-    private async Task<DocumentRead<T>> Read<T>(string owner, string id, ReadSession session, CancellationToken token) where T : class
-    {
-        var read = await store.ReadAsync<T>(owner, id, session.Token, token);
-        if (read.Document is not null && (string.IsNullOrEmpty(read.Etag) || string.IsNullOrEmpty(read.SessionToken))) throw CosmosErrors.Unavailable();
-        if (!string.IsNullOrEmpty(read.SessionToken)) session.Accept(read.SessionToken);
-        return read;
     }
 
     public static ApiException InvalidParticipants() => new(422, "VALIDATION_ERROR", "参加者を2〜6名、重複なく選択してください。",

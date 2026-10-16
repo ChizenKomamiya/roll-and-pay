@@ -23,6 +23,7 @@ builder.Services.AddSingleton<ICosmosPointReader, CosmosPointReader>();
 builder.Services.AddSingleton<GameReader>();
 builder.Services.AddSingleton<IHistoryStore, CosmosHistoryStore>();
 builder.Services.AddSingleton<HistoryReader>();
+builder.Services.AddSingleton<HistoryDeleter>();
 builder.Services.AddSingleton<ICosmosBatchWriter, CosmosBatchWriter>();
 builder.Services.AddSingleton<GameCreator>();
 builder.Services.AddSingleton<IDie, SecureDie>();

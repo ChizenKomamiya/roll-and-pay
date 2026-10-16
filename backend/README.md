@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加者取得・ゲーム状態取得・作成・中止・抽選・再抽選）、G07（金額プレビュー）、G08（金額確定・累積額）、G09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加者取得・ゲーム状態取得・作成・中止・抽選・再抽選）、G07（金額プレビュー）、G08（金額確定・累積額）、G09（履歴参照）、G10（履歴削除）を実装。
 
 ## 現在の範囲
 
@@ -20,7 +20,17 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-金額確定、累積額取得、履歴削除は後続グループで実装する。フロントエンドのAPI接続はfrontend/README.mdを参照。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+全14業務APIを実装済み（A11は欠番）。フロントエンドのAPI接続状況はfrontend/README.mdを参照。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+
+## 履歴削除（G10）
+
+`DELETE /api/v1/games/{gameId}`（A14）は管理者認証、`Idempotency-Key`、履歴詳細A15の単一の強い`If-Match`が必須。本文・クエリは指定できず400、Content-Typeは不要。キー／If-Match欠落428、不正形式400。不在／所有者外404、削除済み410、版不一致412、未完了・中止409の順に判定する。
+
+completedのgameをdeletedへ変更し、revision加算とupdatedAt/deletedAt設定、保存済みpayment.lossYenだけの累積減算、成功commandの作成を同一所有者の3操作TransactionalBatchでコミットする。game/lossTotalsは内部ETag条件付きReplace。0円も削除可能。会計・完了日時・当時名・全ラウンドは保持し、controlは読取・更新しないため別の未完了ゲームへ影響しない。過去の計算規則を再適用しない。集計不足・不正値・欠落は503で全件未更新とし、自動修復しない。
+
+200はgameId/status/revision/deletedAt/removedLoss/lossTotalsと更新後ETag・最新X-Read-Session・Idempotency-Replayedを返す。現在名・無効者を含む集計を返し、整数文字列を維持する。参加者マスターはDB設計どおり業務更新中に変更しない。HTTPメソッド・正規化パス・本文なし・元If-Matchのハッシュを照合し、同キー同要求は元の成功を再生、キー流用409。削除後の過去保存要求の再生も復活・再加算しない。再生応答の集計は当時値のため、A12で最新値を取得する。
+
+別履歴削除・新ゲーム保存の集計競合は、元If-Matchを保持したまま最新集計から減算し直す。ゲーム版が変わった場合は追随せず410/412。最大3回バッチ・全体10秒。応答断は成功記録で照合し、確認できなければ503として元の要求の再送を維持する。削除後は詳細・共有結果・一覧キャッシュとカーソルを破棄し、A10を先頭から、A12を読取セッション付きで取得する。フロントエンド接続は別作業。
 
 ## ゲーム作成（G04）
 
@@ -223,6 +233,8 @@ G05追加後（G09マージ済みmainへリベース）：`pipeline/backend/Buil
 G05・フロントエンドAPI接続のmainマージ後：共通If-Match検証をG05の実装に統合。形式が正しい強いETagの不一致は412とし、抽選／再抽選と中止が競合した場合に双方の勝者を保持する4ケースを追加。`pipeline/backend/Build.ps1`でオフライン495テスト成功、Release発行・発行物検査成功。エミュレーター未導入のため統合15件は理由付きスキップ。
 
 2026年10月17日（G08）：`pipeline/backend/Build.ps1`でオフライン594テスト（G08追加99件）が成功し、Release発行・発行物検査も成功。作成→同点→全員再抽選→13,800円・4人のプレビュー→保存→再送→累積額取得を認証付きHTTPテストで確認。0円、JavaScript安全整数超の累積額、オーバーフロー拒否、現在名・無効参加者、保存／中止の両勝者、条件競合、応答断、削除後の過去保存キー再生を検証した。実FunctionsホストでSavePayment/GetLossTotalsのルートと認証なし401、health 200、OPTIONS 204、no-storeを確認。エミュレーター未導入のため統合19件（G08追加4件）は理由付きスキップ。追加統合テストは実バッチの同キー／別キー同時保存、4操作それぞれの競合時ロールバック、保存／中止、応答断、別クライアントでのセッション継承・再生・集計読取を扱う。実Cosmosの原子性・RU・要求サイズ・時間枠、実テナントトークンでの成功疎通は未検証。Azure配置・本番データ書込は行っていない。
+2026年10月17日（G10）：`pipeline/backend/Build.ps1`でオフライン646件（G10追加52件）・Release発行・発行物検査が成功。二重削除、0円・最終一件、保存された過去計算額の減算、別履歴削除・新ゲーム保存の競合、負の集計の停止、応答断、別の未完了ポインター保持、削除後の古い保存要求の再生を検証。認証付きHTTPで作成→同点→全員再抽選→プレビュー→保存→削除→過去保存再送→累積0を確認し、別テストで詳細ETag→削除→履歴空・詳細／共有結果410・累積0を確認。実FunctionsホストでDeleteHistoryのDELETEルートと認証なし401、health 200、OPTIONS 204、no-store・応答ヘッダー公開を確認。エミュレーター未導入のため統合23件（G10追加4件）は理由付きスキップ。実Cosmosの原子性・RU・実テナントトークンでの成功疎通は未検証。Azure配置・本番データ書込は行っていない。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -237,6 +249,7 @@ G05・フロントエンドAPI接続のmainマージ後：共通If-Match検証�
 - `Functions/PaymentSaveFunction.cs`／`Functions/LossTotalsFunction.cs`：A09・A12。
 - `Payments/`：金額検証・計算・確定、集計の検証・現在名との組立。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。
+- `Functions/HistoryDeleteFunction.cs`／`History/HistoryDeleter.cs`：A14、論理削除・保存L減算・成功記録の一括保存と再生。
 - `Data/CosmosHistoryStore.cs`：所有者パーティション内の履歴クエリ。
 - `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。
 - `Authentication/`：認証設定、JWT検証と管理者認可。

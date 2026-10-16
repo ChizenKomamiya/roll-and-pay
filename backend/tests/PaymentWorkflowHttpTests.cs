@@ -30,6 +30,7 @@ public sealed class PaymentWorkflowHttpTests(TokenFixture tokens) : IClassFixtur
             {
                 "/api/v1/statistics/losses" => await new LossTotalsFunction(new(store)).Run(request),
                 "/api/v1/games" => await new GameCreateFunction(store.Creator()).Run(request),
+                _ when request.Method == "DELETE" => await new HistoryDeleteFunction(new(store, store)).Run(request, id),
                 _ when path.EndsWith("/payment-preview") => await new PaymentPreviewFunction(reader).Run(request, id),
                 _ when path.EndsWith("/payment") => await new PaymentSaveFunction(new(store, store)).Run(request, id),
                 _ when path.EndsWith("/rolls") => await new GameDiceFunctions(new(store, store, die ?? new SequenceDie())).Roll(request, id),
@@ -79,6 +80,19 @@ public sealed class PaymentWorkflowHttpTests(TokenFixture tokens) : IClassFixtur
         var entries = body.RootElement.GetProperty("participants").EnumerateArray().ToArray();
         Assert.Equal("1800", entries[0].GetProperty("totalLossYen").GetString());
         Assert.All(entries.Skip(1), p => Assert.Equal("0", p.GetProperty("totalLossYen").GetString()));
+        Assert.Equal("tied", ((RoundDocument)store.Documents[$"round:{id}:1"].Document).Status);
+        using var delete = new HttpRequestMessage(HttpMethod.Delete, path);
+        delete.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        delete.Headers.TryAddWithoutValidation("If-Match", saved.Headers.ETag!.Tag);
+        var deleted = await client.SendAsync(delete); Assert.Equal(200, (int)deleted.StatusCode);
+        client.DefaultRequestHeaders.Remove("X-Read-Session");
+        client.DefaultRequestHeaders.Add("X-Read-Session", deleted.Headers.GetValues("X-Read-Session").Single());
+        var oldSave = await Post(path + "/payment", "{\"totalYen\":13800}", preview.Headers.ETag.Tag, key);
+        Assert.Equal("true", oldSave.Headers.GetValues("Idempotency-Replayed").Single());
+        Assert.Equal(await saved.Content.ReadAsStringAsync(), await oldSave.Content.ReadAsStringAsync());
+        using var afterDelete = JsonDocument.Parse(await (await client.GetAsync("/api/v1/statistics/losses")).Content.ReadAsStringAsync());
+        Assert.All(afterDelete.RootElement.GetProperty("participants").EnumerateArray(), p => Assert.Equal("0", p.GetProperty("totalLossYen").GetString()));
+        Assert.Equal("deleted", ((GameDocument)store.Documents[$"game:{id}"].Document).Status);
         Assert.Equal("tied", ((RoundDocument)store.Documents[$"round:{id}:1"].Document).Status);
     }
 

@@ -4,7 +4,7 @@
 
 目的：API実装をレビュー可能な大きさに分け、各チャットの作業範囲・ブランチ・依存関係・完了条件を共有する。本書とグループIDを指定すれば、そのグループの作業を依頼できる。
 
-G01〜G07・G09はmainへマージ済み。G08の金額確定・累積額（A09・A12）を実装。各グループのPR状態は末尾の進捗表に記録する。
+G01〜G09はmainへマージ済み。G10の履歴削除（A14）まで全14業務APIを実装。各グループのPR状態は末尾の進捗表に記録する。
 
 ## 参照資料
 
@@ -156,6 +156,6 @@ PR作成後はこの文書末尾の進捗表へURLと状態を記録する。依
 | G05 | mainへマージ済み。G05のエミュレーター統合3件は未実施 | [#7](https://github.com/ChizenKomamiya/roll-and-pay/pull/7) |
 | G06 | mainへマージ済み。オフライン495件検証済み。G06のエミュレーター統合3件は未実施 | [#8](https://github.com/ChizenKomamiya/roll-and-pay/pull/8) |
 | G07 | mainへマージ済み。オフライン280件検証済み。実Cosmos・実テナント疎通は未実施 | [#4](https://github.com/ChizenKomamiya/roll-and-pay/pull/4) |
-| G08 | 実装・オフライン594件検証済み、レビュー待ち（未マージ）。G08のエミュレーター統合4件は未実施 | [#14](https://github.com/ChizenKomamiya/roll-and-pay/pull/14) |
+| G08 | mainへマージ済み。オフライン594件検証済み。G08のエミュレーター統合4件は未実施 | [#14](https://github.com/ChizenKomamiya/roll-and-pay/pull/14) |
 | G09 | mainへマージ済み。G09のエミュレーター統合2件は未実施 | [#6](https://github.com/ChizenKomamiya/roll-and-pay/pull/6) |
-| G10 | 未着手 | — |
+| G10 | 実装・オフライン646件検証済み、レビュー待ち（未マージ）。G10のエミュレーター統合4件は未実施 | [#15](https://github.com/ChizenKomamiya/roll-and-pay/pull/15) |

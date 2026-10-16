@@ -37,6 +37,8 @@ Node.js 24とpnpm 11.25.0を使い、`install --frozen-lockfile` → 48件の現
 
 Functionsの共有キー・公開プロファイルは使わず、Azure/loginのOIDCで既存Flex Consumptionのアプリへ配置する。GitHubのSecrets and variables → Actions → **Variables** に次を設定する。
 
+配置専用IDがまだなければ、[infra/scriptsの作成手順](../infra/scripts/README.md#5-github-actionsのバックエンド配置専用id)に従って`Register-BackendDeploymentIdentity.ps1`を実行する。既存Function App用のマネージドID・main限定のOIDC連携・配置権限を作成し、以下の4変数をまとめて返す。返された値をGitHubへ登録してからBackendを再実行する。
+
 | Repository Variable | 値 |
 |---|---|
 | `ROLLPAY_AZURE_TENANT_ID` | 配置先テナントID |
@@ -48,7 +50,9 @@ Functionsの共有キー・公開プロファイルは使わず、Azure/loginの
 
 - Issuer：`https://token.actions.githubusercontent.com`
 - Audience：`api://AzureADTokenExchange`
-- Subject：`repo:ChizenKomamiya/roll-and-pay:ref:refs/heads/main`
+- Subject：`repo:ChizenKomamiya@33175412/roll-and-pay@1418381637:ref:refs/heads/main`
+
+このリポジトリはGitHubの数値ID入りSubjectを使用する。旧形式の`repo:ChizenKomamiya/roll-and-pay:ref:refs/heads/main`では`AADSTS700213`で失敗する。旧版の準備スクリプトを実行済みなら、修正版を同じ引数で再実行すると、同じ配置IDのSubjectだけを更新できる。Client IDの再登録は不要。[GitHubの仕様変更](https://github.blog/changelog/2026-04-23-immutable-subject-claims-for-github-actions-oidc-tokens/)
 
 Azure側で当該Function Appへのコード配置に必要な権限を付与する（公式例のWebsite Contributor等を対象スコープで確認）。リソース作成・DBデータへの権限をバックエンド配置IDへ一括付与しない。PRではAzure/login・配置のステップを実行しない。
 
@@ -79,8 +83,8 @@ push／PRの検証ではAzureログインせず、Azure上の設定を読み書�
 
 手動配置用IDのOIDC Issuer/Audienceは上記と同じ。Subjectは環境ごとに分ける。
 
-- インフラ：`repo:ChizenKomamiya/roll-and-pay:environment:infrastructure-production`
-- DB：`repo:ChizenKomamiya/roll-and-pay:environment:database-production`
+- インフラ：`repo:ChizenKomamiya@33175412/roll-and-pay@1418381637:environment:infrastructure-production`
+- DB：`repo:ChizenKomamiya@33175412/roll-and-pay@1418381637:environment:database-production`
 
 インフラ用IDには既存[インフラ手順](../infra/README.md)に記載のサブスクリプションデプロイ・RG／リソース管理・ロール割り当て権限が必要。DB用IDには[DB手順](../database/README.md)の管理プレーン権限が必要。自動ワークフローからID作成・権限付与は行わない。OIDC設定・RBACが済んでいなければクラウド操作は失敗する。
 
@@ -114,5 +118,7 @@ node --test pipeline/tests/trigger-filters.test.mjs
 - [Backend](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811378020)：発行確認成功。配置用Client IDのVariable未登録のため、Azureログイン前に停止。
 - [Infrastructure](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377998)、[Database](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377963)：検証成功。自動pushでは反映ジョブをスキップ。
 - [Pipeline definitions](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38811377947)：トリガー分離テスト・PowerShell構文の検証成功。
+
+同日、その後の[Backend #10（3回目）](https://github.com/ChizenKomamiya/roll-and-pay/actions/runs/38855735004/attempts/3)でビルド・設定チェック・Azure OIDCログイン・Functions配置がすべて成功。2回目の`AADSTS700213`はGitHubの数値ID入りSubjectとAzure側の旧Subjectの不一致が原因で、配置専用IDのSubjectを更新して解消した。初期設定スクリプトと上記Subject例も修正済み。業務APIの実データ疎通は別途確認する。
 
 参考：[GitHubの配置ディレクトリ](https://docs.github.com/en/actions/tutorials/create-an-example-workflow)、[変更パスのフィルター](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)、[SWAビルド構成](https://learn.microsoft.com/azure/static-web-apps/build-configuration)、[FunctionsのGitHub Actions配置](https://learn.microsoft.com/azure/azure-functions/functions-how-to-github-actions)。

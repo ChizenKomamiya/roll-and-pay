@@ -13,7 +13,7 @@ GitHub Actionsの資産別ワークフローは [pipelineの手順](../pipeline/
 | `data-access.bicep` | Functions作成後のManaged Identityにデータアクセス権限を付与 |
 | `../database/container-definition.json` | DB・コンテナー名、パーティション、インデックスの共通定義 |
 | `prod.bicepparam` | 本番設定。実ID・通知先を環境変数から取得 |
-| `scripts/` | Entraアプリ登録・本人Object ID取得のPowerShellスクリプト。[実行手順](scripts/README.md) |
+| `scripts/` | Entraアプリ登録・本人Object ID取得・GitHub Actions配置専用ID作成のPowerShellスクリプト。[実行手順](scripts/README.md) |
 
 ## 作成する構成
 

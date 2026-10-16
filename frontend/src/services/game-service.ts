@@ -1,9 +1,8 @@
 import type { Game, HistoryPage, LossTotal, Participant, Payment } from '../domain/types'
 
-/** Pages depend on this contract. The demo implementation owns random results and persistence. */
+/** Pages depend on this contract; API results are authoritative in API mode. */
 export interface GameService {
-  /** Absent in the demo, which supports every operation. */
-  capabilities?: { totals: boolean; history: boolean; roll: boolean; cancel: boolean; save: boolean; delete: boolean }
+  mode?: 'api' | 'demo'
   participants(): Promise<Participant[]>
   totals(): Promise<LossTotal[]>
   active(): Promise<Game | null>

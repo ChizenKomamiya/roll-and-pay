@@ -41,9 +41,10 @@ export async function paymentPage(context: PageContext, id: string, saved = fals
       await context.service.save(id, game.revision, preview.totalYen); state.paymentInputs.delete(id)
       if (context.isCurrent()) navigate(gamePath(id, 'result'))
     }) })
-    previewArea.replaceChildren(el('h2', 'preview-heading', '負担額を確認。'), el('p', 'muted', 'まだ保存されていません。'), paymentSummary(game, preview), el('p', 'hint', `基準負担額${yen(preview.baseYen)} × ${game.participants.length}人 ＋ 負け額${yen(preview.lossYen)}`), context.service.capabilities?.save === false ? el('p', 'notice', '金額の保存は準備中です。プレビューは記録に保存されません。') : saveButton)
+    previewArea.replaceChildren(el('h2', 'preview-heading', '負担額を確認。'), el('p', 'muted', 'まだ保存されていません。'), paymentSummary(game, preview), el('p', 'hint', `基準負担額${yen(preview.baseYen)} × ${game.participants.length}人 ＋ 負け額${yen(preview.lossYen)}`), saveButton)
     if (preview.baseYen === 0) previewArea.prepend(el('div', 'notice', el('strong', '', '少額会計のため敗者が全額を負担します'), el('p', '', '他の参加者の負担は0円です。金額を確認してください。')))
   }) })
+  if (context.service.mode === 'api') form.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))
   root.append(form, link('ホームへ戻る（ゲームは保持）', '/home', 'back lower-back'))
   return { element: root }
 }

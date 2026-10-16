@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApiClient } from '../services/api-client'
 import { createApiService } from '../services/api-service'
-import { gameDto, gameId, memoryStorage, participants, paymentDto, response } from '../services/api-fixtures.test-helper'
+import { completedDto, deletedDto, totalsDto, gameDto, gameId, memoryStorage, participants, paymentDto, response } from '../services/api-fixtures.test-helper'
 import { homePage } from './home'
 import { participantsPage } from './participants'
 import { historyPage } from './history'
@@ -12,22 +12,43 @@ import { dicePage } from './dice'
 import { state } from '../state'
 
 vi.mock('../components/dice-view', () => ({ diceView: (value: number | null) => ({ element: document.createTextNode(String(value)), play: vi.fn(), dispose: vi.fn() }) }))
-afterEach(() => { document.body.replaceChildren(); state.selectedIds.clear(); state.paymentInputs.clear() })
+afterEach(() => { vi.restoreAllMocks(); Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal'); Reflect.deleteProperty(HTMLDialogElement.prototype, 'close'); location.hash = ''; document.body.replaceChildren(); state.selectedIds.clear(); state.paymentInputs.clear() })
 function setup() {
   const fetcher = vi.fn<typeof fetch>()
   const service = createApiService(createApiClient({ baseUrl: 'https://api.example.test/api/v1/', getAccessToken: async () => 'token', fetch: fetcher }), memoryStorage(), 'pending')
   return { fetcher, context: { service, isCurrent: () => true, refresh: vi.fn() } }
 }
 describe('API接続時の画面', () => {
-  it('ホームは累積APIを呼ばず、デモ初期化とゲーム中止を表示しない', async () => {
+  it('ホームにAPIの累積額・0円・無効者と中止ボタンを表示する', async () => {
     const { context, fetcher } = setup()
-    fetcher.mockResolvedValueOnce(response({ game: gameDto() }))
+    fetcher.mockResolvedValueOnce(response(totalsDto)).mockResolvedValueOnce(response({ game: gameDto() }))
     const page = await homePage(context)
-    expect(page.element.textContent).toContain('累積負け額は準備中')
+    expect(page.element.textContent).toContain('9,007,199,254,740,993円')
+    expect(page.element.textContent).toContain('0円')
+    expect(page.element.textContent).toContain('現在は無効')
     expect(page.element.textContent).toContain('ゲームを再開')
-    expect(page.element.textContent).not.toContain('デモデータ')
-    expect(page.element.querySelector('button')).toBeNull()
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(page.element.textContent).not.toMatch(/デモデータ|準備中|未参加/)
+    expect([...page.element.querySelectorAll('button')].some(button => button.textContent === 'このゲームを中止')).toBe(true)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+  it('ホームの中止確認でキャンセルは要求を送らず、確定時だけ中止する', async () => {
+    const { context, fetcher } = setup()
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.open = true } })
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value(this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) } })
+    fetcher.mockResolvedValueOnce(response(totalsDto)).mockResolvedValueOnce(response({ game: gameDto() }))
+    const page = await homePage(context); document.body.append(page.element)
+    const open = [...page.element.querySelectorAll('button')].find(button => button.textContent === 'このゲームを中止')!
+    open.click()
+    ;[...document.querySelector('dialog')!.querySelectorAll('button')].find(button => button.textContent === 'キャンセル')!.click()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    const cancelled = gameDto({ revision: 2, status: 'cancelled' })
+    fetcher.mockResolvedValueOnce(response(cancelled, 2)).mockResolvedValueOnce(response(cancelled, 2))
+    open.click()
+    const confirm = [...document.querySelector('dialog')!.querySelectorAll('button')].find(button => button.textContent === '中止する')!
+    confirm.click(); confirm.click()
+    await vi.waitFor(() => expect(context.refresh).toHaveBeenCalledOnce())
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    page.dispose?.(); vi.restoreAllMocks()
   })
   it('参加者APIの実際の名前を表示し、2人未満では開始できない', async () => {
     const { context, fetcher } = setup()
@@ -79,24 +100,55 @@ describe('API接続時の画面', () => {
     await vi.waitFor(() => expect(more.hidden).toBe(true))
     expect(String(fetcher.mock.calls[1][0])).toBe(String(fetcher.mock.calls[2][0]))
   })
-  it('履歴詳細APIを使い、削除リンクと抽選記録を表示しない', async () => {
+  it('履歴詳細APIを使い、削除確認へのリンクを表示し抽選記録を取得しない', async () => {
     const { context, fetcher } = setup()
     fetcher.mockResolvedValueOnce(response({ ...gameDto(), loserParticipantId: 'p001', payment: paymentDto, completedAt: '2026-10-14T05:10:00Z', canDelete: true }))
     const page = await historyDetailPage(context, gameId)
     expect(page.element.textContent).toContain('当時の名前A')
-    expect(page.element.textContent).toContain('履歴の削除は準備中')
-    expect(page.element.querySelector('a[href$="/delete"]')).toBeNull()
+    expect(page.element.textContent).not.toContain('準備中')
+    expect(page.element.querySelector('a[href$="/delete"]')).not.toBeNull()
     expect(page.element.textContent).not.toContain('出目')
   })
-  it('金額プレビューを表示し、保存ボタンを出さない', async () => {
+  it('金額プレビューを確認して保存でき、連打で重複要求しない', async () => {
     const { context, fetcher } = setup()
     const dto = gameDto({ status: 'awaitingPayment', loserParticipantId: 'p001' })
     fetcher.mockResolvedValueOnce(response(dto)).mockResolvedValueOnce(response(dto)).mockResolvedValueOnce(response({ gameId, revision: 1, payment: paymentDto }))
     const page = await paymentPage(context, gameId); document.body.append(page.element)
     page.element.querySelector('input')!.value = '7800'
     page.element.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await vi.waitFor(() => expect(page.element.textContent).toContain('金額の保存は準備中'))
+    await vi.waitFor(() => expect(page.element.textContent).toContain('この結果を保存する'))
     expect(page.element.textContent).toContain('1,800円')
-    expect([...page.element.querySelectorAll('button')].some(button => button.textContent === 'この結果を保存する')).toBe(false)
+    expect(page.element.textContent).not.toContain('準備中')
+    fetcher.mockResolvedValueOnce(response({ game: completedDto(), lossTotals: totalsDto }, 2)).mockResolvedValueOnce(response(completedDto(), 2)).mockResolvedValueOnce(response(totalsDto))
+    const save = [...page.element.querySelectorAll('button')].find(button => button.textContent === 'この結果を保存する')!
+    save.click(); save.click()
+    await vi.waitFor(() => expect(location.hash).toBe(`#/games/${gameId}/result`))
+    expect(fetcher.mock.calls.filter(([url]) => String(url).endsWith('/payment'))).toHaveLength(1)
+  })
+  it('削除確認の表示・キャンセルでは削除せず、確定クリック時だけDELETEする', async () => {
+    const { context, fetcher } = setup()
+    fetcher.mockResolvedValueOnce(response(completedDto(), 2))
+    const page = await historyDetailPage(context, gameId, true); document.body.append(page.element)
+    expect(page.element.textContent).toContain('この操作は元に戻せません')
+    expect(page.element.querySelector('a.button.secondary')?.getAttribute('href')).toBe(`#/games/${gameId}/detail`)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    fetcher.mockResolvedValueOnce(response(deletedDto(), 3)).mockResolvedValueOnce(new Response('{}', { status: 410 })).mockResolvedValueOnce(response(totalsDto))
+    const remove = [...page.element.querySelectorAll('button')].find(button => button.textContent === '削除する')!
+    remove.click(); remove.click()
+    await vi.waitFor(() => expect(location.hash).toBe('#/history/deleted'))
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(1)
+  })
+  it('保存競合の案内から最新状態を再取得できる', async () => {
+    const { context, fetcher } = setup(), dto = gameDto({ status: 'awaitingPayment', loserParticipantId: 'p001' })
+    fetcher.mockResolvedValueOnce(response(dto)).mockResolvedValueOnce(response(dto)).mockResolvedValueOnce(response({ gameId, revision: 1, payment: paymentDto }))
+    const page = await paymentPage(context, gameId); document.body.append(page.element)
+    page.element.querySelector('input')!.value = '7800'
+    page.element.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(page.element.textContent).toContain('この結果を保存する'))
+    fetcher.mockResolvedValueOnce(new Response('{}', { status: 412 })).mockResolvedValueOnce(response(completedDto(), 2))
+    ;[...page.element.querySelectorAll('button')].find(button => button.textContent === 'この結果を保存する')!.click()
+    await vi.waitFor(() => expect(page.element.querySelector('[role=alert]')!.textContent).toContain('更新されました'))
+    ;[...page.element.querySelectorAll('button')].find(button => button.textContent === '最新の状態を確認')!.click()
+    expect(context.refresh).toHaveBeenCalledOnce()
   })
 })

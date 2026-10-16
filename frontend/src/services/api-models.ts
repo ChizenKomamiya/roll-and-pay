@@ -1,4 +1,4 @@
-import type { Game, HistoryPage, Participant, Payment } from '../domain/types'
+import type { Game, HistoryPage, Participant, Payment, LossTotal } from '../domain/types'
 
 function invalid(): never { throw new Error('API応答の形式を確認できませんでした。再読み込みしてください。') }
 export function object(value: unknown): Record<string, unknown> {
@@ -52,4 +52,23 @@ export function mapHistory(value: unknown): HistoryPage {
     const item = object(value)
     return { id: text(item.gameId), createdAt: timestamp(item.createdAt), loser: participant(item.loser), participantCount: integer(item.participantCount, 2, 6), totalYen: integer(item.totalYen, 1, 9_999_999), lossYen: integer(item.lossYen) }
   }), nextCursor: page.nextCursor === null ? null : text(page.nextCursor) }
+}
+
+/** The API does not expose participation history; zero must not imply non-participation. */
+export function mapLossTotals(value: unknown): LossTotal[] {
+  const response = object(value)
+  if (response.updatedAt !== null) timestamp(response.updatedAt)
+  const totals = array(response.participants).map(value => {
+    const p = object(value), person = participant(p), amount = text(p.totalLossYen)
+    if (typeof p.isActive !== 'boolean' || !/^(0|[1-9][0-9]{0,18})$/.test(amount) || BigInt(amount) > 9223372036854775807n) return invalid()
+    return { ...person, totalYen: BigInt(amount), hasParticipated: null, isActive: p.isActive }
+  })
+  if (totals.length > 100 || new Set(totals.map(p => p.id)).size !== totals.length) return invalid()
+  return totals
+}
+export function mapDeleted(value: unknown, etag: string | null, game: Game): void {
+  const result = object(value), removed = object(result.removedLoss)
+  if (result.gameId !== game.id || result.status !== 'deleted' || integer(result.revision, 1) <= game.revision || etag !== `"g-${game.id}-v${result.revision}"` || removed.participantId !== game.loserId || removed.amountYen !== game.payment?.lossYen) return invalid()
+  timestamp(result.deletedAt)
+  mapLossTotals(result.lossTotals)
 }

@@ -13,3 +13,11 @@ export function memoryStorage() {
   const data = new Map<string, string>()
   return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value) }, removeItem: (key: string) => { data.delete(key) } }
 }
+
+export const totalsDto = { participants: [
+  { participantId: 'p001', displayName: '現在の名前A', isActive: true, totalLossYen: '9007199254740993' },
+  { participantId: 'p002', displayName: '現在の名前B', isActive: false, totalLossYen: '0' },
+], updatedAt: '2026-10-17T00:00:00Z' }
+export const awaitingDto = () => gameDto({ status: 'awaitingPayment', loserParticipantId: 'p001' })
+export const completedDto = (revision = 2) => gameDto({ revision, status: 'completed', completedAt: '2026-10-17T00:00:00Z', loserParticipantId: 'p001', payment: { ...paymentDto, registeredAt: '2026-10-17T00:00:00Z' } })
+export const deletedDto = (revision = 3) => ({ gameId, status: 'deleted', revision, deletedAt: '2026-10-17T00:01:00Z', removedLoss: { participantId: 'p001', amountYen: 1800 }, lossTotals: totalsDto })

@@ -10,23 +10,21 @@ import { loginPage } from './pages/login'
 import { participantsPage } from './pages/participants'
 import { paymentPage } from './pages/payment'
 import { navigate, parseRoute } from './router'
-import { createMockService, STORAGE_KEY } from './services/mock-service'
+import { STORAGE_KEY } from './services/mock-service'
+import type { AppRuntime } from './services/runtime'
 import { state } from './state'
 
-const SESSION_KEY = 'roll-and-pay.demo.session'
-
-export function startApp(root: HTMLElement) {
-  const service = createMockService({ getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) })
+export function startApp(root: HTMLElement, runtime: AppRuntime) {
   let page: Page | undefined, generation = 0
   let mountedHash: string | null = null
-  let signedIn = false
-  try { signedIn = sessionStorage.getItem(SESSION_KEY) === 'active' } catch { /* A session can still run without persisting the sign-in. */ }
-  function setSignIn(value: boolean) {
-    signedIn = value
-    try { if (value) sessionStorage.setItem(SESSION_KEY, 'active'); else sessionStorage.removeItem(SESSION_KEY) } catch { /* Storage errors for game data are handled separately by the service. */ }
+  let signedIn = runtime.signedIn
+  runtime.onSessionExpired = () => { signedIn = false; state.paymentInputs.clear(); state.selectedIds.clear(); navigate('/login', true) }
+  const login = async () => { await runtime.login(); signedIn = true; navigate('/home', true) }
+  const logout = () => {
+    signedIn = false; state.paymentInputs.clear(); state.selectedIds.clear()
+    void runtime.logout().catch(() => { runtime.message = 'ログアウト処理を完了できませんでした。再度ログインしてください。' }).finally(() => navigate('/login', true))
+    navigate('/login', true)
   }
-  const login = () => { setSignIn(true); navigate('/home', true) }
-  const logout = () => { setSignIn(false); state.paymentInputs.clear(); state.selectedIds.clear(); navigate('/login', true) }
 
   async function render(preserveViewport = false) {
     const keepViewport = preserveViewport && mountedHash === location.hash
@@ -37,7 +35,8 @@ export function startApp(root: HTMLElement) {
     const route = parseRoute(location.hash)
     if (!signedIn && route.page !== 'login') { navigate('/login', true); return }
     if (signedIn && route.page === 'login') { navigate('/home', true); return }
-    const shell = el('div', 'app-shell', appHeader(signedIn, logout), el('div', 'demo-banner', 'デモモード · 記録はこのブラウザーに保存'))
+    const service = runtime.service
+    const shell = el('div', 'app-shell', appHeader(signedIn, logout), el('div', 'demo-banner', runtime.mode === 'demo' ? 'デモモード · 記録はこのブラウザーに保存' : 'API接続モード · 記録はサーバーで管理'))
     const main = el('main'); shell.append(main)
     // Keep the existing page height while refreshing. A short loading placeholder
     // would make the browser clamp scrollY to zero before the new page is ready.
@@ -62,7 +61,7 @@ export function startApp(root: HTMLElement) {
     try {
       let result: Page
       switch (route.page) {
-        case 'login': result = loginPage(login); break
+        case 'login': result = loginPage(login, runtime.mode, runtime.message); break
         case 'home': result = await homePage(context); break
         case 'participants': result = await participantsPage(context); break
         case 'history': result = await historyPage(context); break
@@ -82,12 +81,13 @@ export function startApp(root: HTMLElement) {
       const details = el('details', 'demo-options', el('summary', '', 'デモデータを初期化'))
       const action = actions(context, details)
       details.append(el('p', '', 'このブラウザーのデモ記録を破棄し、サンプル4件に戻します。'), button('確認してサンプルに戻す', () => { void action.run(async () => { await service.resetDemo(); navigate('/home', true) }) }, 'button danger'))
-      errorPage.append(details); mount(errorPage)
+      if (runtime.mode === 'demo') errorPage.append(details)
+      mount(errorPage)
     }
   }
   const refresh = () => { void render() }
-  const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_KEY || event.key === null) void render(true) }
+  const onStorage = (event: StorageEvent) => { if (runtime.mode === 'demo' && (event.key === STORAGE_KEY || event.key === null)) void render(true) }
   window.addEventListener('hashchange', refresh); window.addEventListener('storage', onStorage)
   refresh()
-  return () => { generation++; page?.dispose?.(); window.removeEventListener('hashchange', refresh); window.removeEventListener('storage', onStorage) }
+  return () => { generation++; runtime.onSessionExpired = undefined; page?.dispose?.(); window.removeEventListener('hashchange', refresh); window.removeEventListener('storage', onStorage) }
 }

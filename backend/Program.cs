@@ -7,6 +7,7 @@ using Azure.Core;
 using Azure.Identity;
 using RollAndPay.Api.Data;
 using RollAndPay.Api.Games;
+using RollAndPay.Api.History;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -19,6 +20,8 @@ builder.Services.AddSingleton<CosmosConnection>();
 builder.Services.AddSingleton<IRosterStore, CosmosRosterStore>();
 builder.Services.AddSingleton<ICosmosPointReader, CosmosPointReader>();
 builder.Services.AddSingleton<GameReader>();
+builder.Services.AddSingleton<IHistoryStore, CosmosHistoryStore>();
+builder.Services.AddSingleton<HistoryReader>();
 builder.UseMiddleware<ApiHttpMiddleware>();
 
 await builder.Build().RunAsync();

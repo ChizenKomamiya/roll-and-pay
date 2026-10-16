@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加者取得・ゲーム状態取得）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加者取得・ゲーム状態取得）とG09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -18,7 +18,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G03（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲーム作成・更新、履歴、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲーム作成・更新、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
 
 ## ゲーム状態の取得（G03）
 
@@ -31,6 +31,18 @@ A04はcontrol→game→round→game再確認→control再確認を行う。ポ�
 Gameと現RoundのID・版・所有者、保存時の参加者・順序、出目・日時・敗者・会計の整合性を検証する。当時名や保存会計を返し、現在のrosterや計算規則で上書きしない。schemaVersion=1のdeletedAt欠落はnullとして読み、削除済みはGameを公開しない。全ラウンドの走査や更新処理は行わない。
 
 Gameがある応答は`ETag: "g-<gameId>-v<revision>"`を返す。内部`_etag`と区別した単一の強いETagで、A04のgame=nullやエラーには付けない。応答にownerKey/type/schemaVersion/deletedAt等の保存用フィールドを含めない。G02の読取セッションを各Point Readで引き継ぎ、最後の読取で得た値を`X-Read-Session`に返す。
+
+## 履歴の参照（G09）
+
+A10 `GET /api/v1/games`は本文なし、`limit`（1〜50、既定20）と`cursor`だけを受け付ける。本人のパーティション内のcompletedだけをcreatedAt降順→gameId降順で返す。敗者名は保存当時の名前。0円履歴も含み、空は`{"items":[],"nextCursor":null}`。一覧に全参加者・出目・基準負担額は含めない。
+
+境界カーソルはversion・UTCミリ秒日時・gameId・limitのJSONをbase64url化した4 KiB以下の不透明値。次要求では同じlimitとnextCursorを渡す。未知・重複クエリや不正limitは400 `INVALID_REQUEST`、カーソルの形式・値・limit不一致は400 `INVALID_CURSOR`。署名は付けず、改変しても本人の履歴の境界だけが変わる。保存・削除をまたぐ厳密な一覧スナップショットは保証せず、削除後は先頭から取り直す。
+
+Cosmosの既存複合インデックス（type ASC/status ASC/createdAt DESC/gameId DESC）を使い、TOP limit+1をパラメーター化したクエリで取得する。SDKの短いページ・空ページを終端まで読み、余分な一件があれば最後の返却行をnextCursorにする。必要な保存ゲーム項目だけを投影し、所有者・日時・参加者・保存会計の整合性を検証する。roster・round・commandは読まない。
+
+A15 `GET /api/v1/games/{gameId}/history-detail`は本文・クエリなし。A05と同じGUID検証を行い、game一件のPoint Readだけで当時名・参加順・敗者・保存済みpayment・完了日時・canDelete=trueを返す。公開ETagはA05と同じゲームrevisionから生成する。不存在・所有者外404、削除済み410、未完了・中止409 `INVALID_GAME_STATE`。抽選・出目・ラウンド数を応答しない。現在の参加者名や計算規則で過去会計を再計算しない。
+
+両APIは共通の管理者認証・読取セッション・no-store・エラー変換を使用する。DB読取全体は10秒以内、空一覧でもX-Read-Sessionを返す。セッション未達・DB/コンテナー欠落・保存データ破損は503とRetry-After、DBの429は429に変換し、古いセッションや空履歴で成功扱いにしない。
 
 ## 認証・HTTP共通処理
 
@@ -54,7 +66,7 @@ Gameがある応答は`ETag: "g-<gameId>-v<revision>"`を返す。内部`_etag`�
 
 ## Cosmos DB接続と読取セッション
 
-既存インフラの`Cosmos__Endpoint`（HTTPSアカウントURL）、`Cosmos__DatabaseName`、`Cosmos__ContainerName`を読み込む。設定例は`rollpay/app`。APIにDB・コンテナー・初期データの作成処理はない。DB設定や接続が不完全でもhealth・meは利用でき、DBを使うA02/A04/A05が503になる。
+既存インフラの`Cosmos__Endpoint`（HTTPSアカウントURL）、`Cosmos__DatabaseName`、`Cosmos__ContainerName`を読み込む。設定例は`rollpay/app`。APIにDB・コンテナー・初期データの作成処理はない。DB設定や接続が不完全でもhealth・meは利用でき、DBを使うA02/A04/A05/A10/A15が503になる。
 
 本番はシステム割当Managed Identity、Development環境はAzure CLIのログインIDで認証する。キー・接続文字列・クライアントシークレットは使わない。ローカルで実DBを読む場合は`az login --tenant <対象テナントID>`し、接続先を明示する。API起動時には接続せず、初回のDB利用時にクライアントを作り、Functionsプロセス内で再利用する。既定の本番接続先は設けない。
 
@@ -127,6 +139,8 @@ G02追加後：オフライン103テスト・Release発行成功、実Functions�
 
 G03追加後：オフライン168テスト成功。G03の2件を含むエミュレーター統合4件は未導入のためスキップ。実FunctionsホストでA04/A05のルート、activeがActiveGame関数へ到達すること、認証なし401、health 200、OPTIONS 204を確認。実Cosmosでの復元・並行更新・権限の受入確認は未実施。統合テストは`database/tests/Test-CosmosIntegration.ps1`で実行する。
 
+G09追加後：オフライン256テスト成功、Release発行・発行物検査成功。実FunctionsホストでHistoryList/HistoryDetailへの到達、認証なし401、health 200、OPTIONS 204とno-store・応答ヘッダー公開を確認。G09の2件を含むエミュレーター統合6件は未導入のためスキップ。実CosmosのSQL・複合インデックス適用・RU・別インスタンス間のSessionToken、および実テナントの管理者トークンによるA10/A15の疎通は未検証。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -134,6 +148,8 @@ G03追加後：オフライン168テスト成功。G03の2件を含むエミュ�
 - `Functions/MeFunction.cs`／`OptionsFunction.cs`：A01とプリフライト。
 - `Functions/ParticipantsFunction.cs`：A02。
 - `Functions/GameReadFunctions.cs`：A04・A05。
+- `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。
+- `Data/CosmosHistoryStore.cs`：所有者パーティション内の履歴クエリ。
 - `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。
 - `Authentication/`：認証設定、JWT検証と管理者認可。
 - `Data/`：Cosmosクライアント・保存モデル・所有者識別・rosterのPoint Read。

@@ -6,6 +6,7 @@ using RollAndPay.Api.Http;
 using Azure.Core;
 using Azure.Identity;
 using RollAndPay.Api.Data;
+using RollAndPay.Api.Games;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddSingleton<TokenCredential>(_ => builder.Environment.IsDevelo
     ? new AzureCliCredential() : new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned));
 builder.Services.AddSingleton<CosmosConnection>();
 builder.Services.AddSingleton<IRosterStore, CosmosRosterStore>();
+builder.Services.AddSingleton<ICosmosPointReader, CosmosPointReader>();
+builder.Services.AddSingleton<GameReader>();
 builder.UseMiddleware<ApiHttpMiddleware>();
 
 await builder.Build().RunAsync();

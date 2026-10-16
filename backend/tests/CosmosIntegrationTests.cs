@@ -18,7 +18,7 @@ public sealed class EmulatorFactAttribute : FactAttribute
 
 public sealed class CosmosIntegrationTests
 {
-    private static CosmosClient Client()
+    internal static CosmosClient Client()
     {
         var endpoint = new Uri(Environment.GetEnvironmentVariable("ROLLPAY_EMULATOR_ENDPOINT") ?? "https://localhost:8081/");
         if (!endpoint.IsLoopback || endpoint.Scheme != "https" || endpoint.UserInfo.Length != 0 ||

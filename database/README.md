@@ -78,9 +78,9 @@ $env:ROLLPAY_EMULATOR_KEY = '<ローカルエミュレーターのキー>'
 Remove-Item Env:ROLLPAY_EMULATOR_KEY
 ```
 
-統合テストはHTTPSのloopback以外を拒否し、固有名の`rollpay-g02-test-<GUID>`、`rollpay-g03-test-<GUID>`、`rollpay-g04-test-<GUID>` DBと`/ownerKey`コンテナーを作成する。終了時は作成したテストDBだけを削除する。G02は初期3件の同時コミット、各項目が既存の場合の全件ロールバックとETag維持、所有者分離とSessionToken継承を検証する。G03は全ゲーム状態の復元、未完了ポインター、削除・所有者境界、および複数読取の途中で実TransactionalBatchが更新した場合の整合性を検証する。G04は同キー／別キーの同時作成、rosterのETag競合による全件ロールバック、コミット後応答断の再生、別クライアントへのセッション継承を検証する。実Azure環境は作成・使用しない。エミュレーターのキー認証は本番のManaged Identity/RBAC検証を代替しないため、Azureでの疎通・権限確認は別途必要。
+統合テストはHTTPSのloopback以外を拒否し、固有名の`rollpay-g02-test-<GUID>`、`rollpay-g03-test-<GUID>`、`rollpay-g04-test-<GUID>`、`rollpay-g09-test-<GUID>` DBと`/ownerKey`コンテナーを作成する。終了時は作成したテストDBだけを削除する。G02は初期3件の同時コミット、各項目が既存の場合の全件ロールバックとETag維持、所有者分離とSessionToken継承を検証する。G03は全ゲーム状態の復元、未完了ポインター、削除・所有者境界、および複数読取の途中で実TransactionalBatchが更新した場合の整合性を検証する。G04は同キー／別キーの同時作成、rosterのETag競合による全件ロールバック、コミット後応答断の再生、別クライアントへのセッション継承を検証する。G09は既存のコンテナー定義の複合インデックスを使い、同日時の境界ページング、削除された境界行、当時名、roundなしの詳細、所有者分離と別クライアントへの削除後セッション継承を検証する。実Azure環境は作成・使用しない。エミュレーターのキー認証は本番のManaged Identity/RBAC検証を代替しないため、Azureでの疎通・権限確認は別途必要。
 
-通常の`dotnet test backend/tests/RollAndPay.Api.Tests.csproj`はエミュレーター統合7件（G02・G03各2件、G04の3件）を理由付きでスキップする。上の実行入口は環境変数で明示的に有効化するため、未起動・未接続を成功扱いにしない。Backend CIは全オフラインテストと発行除外を、Database CIは初期登録ツールのテスト・既存スキーマ検証・Bicepコンパイルを実行する。CIから初期データは登録しない。
+通常の`dotnet test backend/tests/RollAndPay.Api.Tests.csproj`はエミュレーター統合9件（G02・G03・G09各2件、G04の3件）を理由付きでスキップする。上の実行入口は環境変数で明示的に有効化するため、未起動・未接続を成功扱いにしない。Backend CIは全オフラインテストと発行除外を、Database CIは初期登録ツールのテスト・既存スキーマ検証・Bicepコンパイルを実行する。CIから初期データは登録しない。
 
 ## 差分確認と反映
 

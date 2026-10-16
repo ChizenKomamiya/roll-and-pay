@@ -19,11 +19,7 @@ public static class GameReadValidation
     public static bool Snapshot(GameDocument game, RoundDocument? round, string owner)
     {
         if (round is null || !Utc(game.CreatedAt) || !Utc(game.UpdatedAt) || game.UpdatedAt < game.CreatedAt ||
-            game.DeletedAt is not null || game.CurrentRoundNumber < 1 || game.Participants is not { Length: >= 2 and <= 6 } ||
-            game.Participants.Any(p => p is null) ||
-            !RosterValidation.IsValid(game.Participants.Select(p => new RosterParticipant
-                { ParticipantId = p.ParticipantId, DisplayName = p.DisplayName, SortOrder = p.Order, IsActive = true }).ToArray()) ||
-            game.Participants.Where((p, i) => p.Order != i + 1).Any()) return false;
+            game.DeletedAt is not null || game.CurrentRoundNumber < 1 || !Participants(game)) return false;
 
         if (round.Id != $"round:{game.GameId:D}:{game.CurrentRoundNumber}" || round.Type != "round" || round.SchemaVersion != 1 ||
             round.OwnerKey != owner || round.GameId != game.GameId || round.RoundNumber != game.CurrentRoundNumber ||
@@ -72,6 +68,20 @@ public static class GameReadValidation
             ? Between(game.CancelledAt, round.CompletedAt ?? round.CreatedAt, game.UpdatedAt) && round.Rolls.All(r => r.RolledAt is null || r.RolledAt <= game.CancelledAt)
             : game.CancelledAt is null;
     }
+
+    // A15 and A10 validate the saved game without fetching or reconstructing a round.
+    public static bool Completed(GameDocument game, string owner) => game.OwnerKey == owner &&
+        game.GameId != Guid.Empty && Header(game, game.GameId) && game.Status == "completed" &&
+        game.DeletedAt is null && game.CancelledAt is null && game.CurrentRoundNumber >= 1 &&
+        Utc(game.CreatedAt) && Utc(game.UpdatedAt) && game.UpdatedAt >= game.CreatedAt &&
+        Between(game.CompletedAt, game.CreatedAt, game.UpdatedAt) && Participants(game) &&
+        game.Participants.Any(p => p.ParticipantId == game.LoserParticipantId) && Payment(game);
+
+    private static bool Participants(GameDocument game) => game.Participants is { Length: >= 2 and <= 6 } &&
+        game.Participants.All(p => p is not null) &&
+        RosterValidation.IsValid(game.Participants.Select(p => new RosterParticipant
+            { ParticipantId = p.ParticipantId, DisplayName = p.DisplayName, SortOrder = p.Order, IsActive = true }).ToArray()) &&
+        game.Participants.Where((p, i) => p.Order != i + 1).Any() == false;
 
     private static bool Payment(GameDocument game)
     {

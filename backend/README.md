@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）とG09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加者取得・ゲーム状態取得・ゲーム作成）、G07（金額プレビュー）、G09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -10,6 +10,8 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 
 `GET /api/v1/games/active`（A04）は未完了ゲームを`{"game":<Gameまたはnull>}`で返す。`GET /api/v1/games/{gameId}`（A05）は本人のゲームと現ラウンドだけを復元し、完了・中止も取得できる。不在・所有者外は404、削除済みは410。詳細は次節を参照。
 
+`POST /api/v1/games/{gameId}/payment-preview`（A08）は`{"totalYen":13800}`から保存なしで負担額・負け額を計算する。敗者確定済みのawaitingPaymentだけで利用できる。詳細は「金額プレビュー（G07）」を参照。
+
 `GET /api/v1/health`は認証なしで200と次のJSONを返す。
 
 ```json
@@ -18,7 +20,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G04（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-ゲーム更新、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+ゲーム更新、金額確定、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
 
 ## ゲーム作成（G04）
 
@@ -45,6 +47,16 @@ A04はcontrol→game→round→game再確認→control再確認を行う。ポ�
 Gameと現RoundのID・版・所有者、保存時の参加者・順序、出目・日時・敗者・会計の整合性を検証する。当時名や保存会計を返し、現在のrosterや計算規則で上書きしない。schemaVersion=1のdeletedAt欠落はnullとして読み、削除済みはGameを公開しない。全ラウンドの走査や更新処理は行わない。
 
 Gameがある応答は`ETag: "g-<gameId>-v<revision>"`を返す。内部`_etag`と区別した単一の強いETagで、A04のgame=nullやエラーには付けない。応答にownerKey/type/schemaVersion/deletedAt等の保存用フィールドを含めない。G02の読取セッションを各Point Readで引き継ぎ、最後の読取で得た値を`X-Read-Session`に返す。
+
+## 金額プレビュー（G07）
+
+A08も管理者認証必須。Content-TypeはUTF-8の`application/json`、本文は16 KiB以下で`totalYen`一項目のみ。1〜9,999,999円のJSON整数を受け付け、文字列・小数（`13800.0`を含む）・指数表記・0・負数・上限超過・未知／重複フィールドは422。不正JSONは400、クエリと不正gameIdは400、Content-Type不正は415、本文超過はContent-Lengthなしでも413。Idempotency-Key・If-Matchは不要。
+
+G03のGameReaderを使って本人の保存ゲーム・現ラウンドを整合する版で読み、保存人数・保存敗者を使う。rolling/tie/completed/cancelledは409 `INVALID_GAME_STATE`、不在・所有者外は404、削除済みは410。保存状態の不整合・継続競合は503。roster・control・lossTotals・成功操作記録を更新しない。
+
+`Payments/PaymentRequest.cs`は本文検証、`Payments/PaymentCalculator.cs`はG08でも利用する計算処理。64ビット整数で、人数N・総額TからB=`(T / (N * 1000)) * 1000`、L=`T - B * N`を計算し、敗者B+L・他者B・受取B×(N−1)を返す。負担合計=Tと0≤L<N×1000を検証。13,800円・4人ではB=3,000円、L=1,800円、敗者4,800円、受取9,000円。小額時のB=0、L=0も許可。
+
+200応答は`{"gameId":"<UUID>","revision":4,"payment":<Payment>}`。Paymentは既存の公開形式で`calculationVersion="thousand-remainder-v1"`、`registeredAt=null`。参照したゲームrevisionの強いETagと最新の`X-Read-Session`を返す。プレビュー後も保存状態・revisionは変わらない。G08では同じ総額とETagを受け取り、サーバーで再計算して確定日時を付ける。
 
 ## 履歴の参照（G09）
 
@@ -157,9 +169,15 @@ G04追加後：オフライン214テスト成功、Release発行成功、ロー�
 
 実Functionsホストでも`CreateGame: [POST] /api/v1/games`の登録、POSTの認証なし401と共通応答ヘッダー、health 200、OPTIONS 204を確認。Azure配置・本番データへの書込は実施していない。
 
+G07追加後：`pipeline/backend/Build.ps1`でオフライン234テスト成功（G07追加66件）、Release発行と発行物検査成功。計算例・2〜6人と敗者全位置・金額境界、厳密な整数入力、本文上限、認証／所有者／状態制限、読取セッション継承、途中更新後のETag／状態再確認、DB読取のみを検証。実FunctionsホストでPaymentPreviewルートへの到達と認証なし401・health 200・OPTIONS 204を確認。既存エミュレーター統合4件は未実施で、実Cosmos・実テナントトークンによるA08の疎通も未検証。作成→抽選→プレビュー→保存の一連検証はG08で実施する。
+
+G04を含むmainのマージ後：`pipeline/backend/Build.ps1`でG04・G07を含むオフライン280テスト成功、エミュレーター統合7件はスキップ。Release発行と発行物検査も成功。
+
 G09追加後：オフライン256テスト成功、Release発行・発行物検査成功。実FunctionsホストでHistoryList/HistoryDetailへの到達、認証なし401、health 200、OPTIONS 204とno-store・応答ヘッダー公開を確認。G09の2件を含むエミュレーター統合6件は未導入のためスキップ。実CosmosのSQL・複合インデックス適用・RU・別インスタンス間のSessionToken、および実テナントの管理者トークンによるA10/A15の疎通は未検証。
 
 G04のmainマージ取り込み後：オフライン302テスト成功、Release発行・発行物検査成功。G04のゲーム作成とG09の履歴参照を両方登録し、関連資料を統合。エミュレーター未導入のため統合9件は未実施（スキップ）。
+
+G07のmainマージ取り込み後：オフライン368テスト成功、Release発行・発行物検査成功。金額プレビューと履歴参照の資料を統合。エミュレーター未導入のため統合9件は未実施（スキップ）。
 
 ## ファイル構成
 
@@ -169,6 +187,8 @@ G04のmainマージ取り込み後：オフライン302テスト成功、Release
 - `Functions/ParticipantsFunction.cs`：A02。
 - `Functions/GameReadFunctions.cs`：A04・A05。
 - `Functions/GameCreateFunction.cs`：A03。
+- `Functions/PaymentPreviewFunction.cs`：A08。
+- `Payments/`：金額入力の検証・負担額／負け額計算（G08で再利用）。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。
 - `Data/CosmosHistoryStore.cs`：所有者パーティション内の履歴クエリ。
 - `Games/`：読取の整合性確認、保存状態の検証、公開Game/RoundとETag。

@@ -22,6 +22,8 @@ builder.Services.AddSingleton<ICosmosPointReader, CosmosPointReader>();
 builder.Services.AddSingleton<GameReader>();
 builder.Services.AddSingleton<IHistoryStore, CosmosHistoryStore>();
 builder.Services.AddSingleton<HistoryReader>();
+builder.Services.AddSingleton<ICosmosBatchWriter, CosmosBatchWriter>();
+builder.Services.AddSingleton<GameCreator>();
 builder.UseMiddleware<ApiHttpMiddleware>();
 
 await builder.Build().RunAsync();

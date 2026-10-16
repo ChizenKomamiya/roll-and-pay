@@ -4,7 +4,7 @@
 
 目的：API実装をレビュー可能な大きさに分け、各チャットの作業範囲・ブランチ・依存関係・完了条件を共有する。本書とグループIDを指定すれば、そのグループの作業を依頼できる。
 
-G01〜G03はmainへマージ済み。G09の履歴参照（A10・A15）を実装。各グループのPR状態は末尾の進捗表に記録する。
+G01〜G04はmainへマージ済み。G09の履歴参照（A10・A15）を実装。各グループのPR状態は末尾の進捗表に記録する。
 
 ## 参照資料
 
@@ -152,7 +152,7 @@ PR作成後はこの文書末尾の進捗表へURLと状態を記録する。依
 | G01 | mainへマージ済み | [#1](https://github.com/ChizenKomamiya/roll-and-pay/pull/1) |
 | G02 | mainへマージ済み。エミュレーター統合2件は未実施 | [#2](https://github.com/ChizenKomamiya/roll-and-pay/pull/2) |
 | G03 | mainへマージ済み。G03のエミュレーター統合2件は未実施 | [#3](https://github.com/ChizenKomamiya/roll-and-pay/pull/3) |
-| G04 | 未着手 | — |
+| G04 | mainへマージ済み。G04のエミュレーター統合3件は未実施 | [#5](https://github.com/ChizenKomamiya/roll-and-pay/pull/5) |
 | G05 | 未着手 | — |
 | G06 | 未着手 | — |
 | G07 | 未着手 | — |

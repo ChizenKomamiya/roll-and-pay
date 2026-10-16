@@ -22,7 +22,8 @@ public sealed class InitialDataTests
         Assert.Null(data.Control.ActiveGameId);
         Assert.Equal(DataTests.Owner, data.Control.OwnerKey);
         Assert.Equal(DataTests.Owner, data.LossTotals.OwnerKey);
-        Assert.Equal(data.Roster.UpdatedAt, data.LossTotals.UpdatedAt);
+        Assert.Null(data.LossTotals.UpdatedAt);
+        Assert.Contains("\"updatedAt\":null", JsonSerializer.Serialize(data.LossTotals, CosmosConnection.ClientOptions().UseSystemTextJsonSerializerWithOptions));
         Assert.Equal(new[] { "p001", "p002" }, data.LossTotals.Totals.Select(t => t.ParticipantId));
         Assert.All(data.LossTotals.Totals, t => Assert.Equal("0", t.TotalLossYen));
         var json = JsonSerializer.Serialize(data.Roster, CosmosConnection.ClientOptions().UseSystemTextJsonSerializerWithOptions);

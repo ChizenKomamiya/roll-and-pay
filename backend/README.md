@@ -1,6 +1,6 @@
 # Roll & Pay — バックエンド
 
-C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G05（認証・参加者取得・ゲーム状態取得・作成・中止）、G07（金額プレビュー）、G09（履歴参照）を実装。
+C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G06（認証・参加者取得・ゲーム状態取得・作成・中止・抽選・再抽選）、G07（金額プレビュー）、G09（履歴参照）を実装。
 
 ## 現在の範囲
 
@@ -20,7 +20,7 @@ C# / .NET 10 / Azure Functions 4.x Isolated Worker。G01〜G05（認証・参加
 
 `Cache-Control: no-store`を付与する。APIプロセスへの到達確認用で、DB接続やEntra IDの正常性を確認するreadinessチェックではない。環境名・バージョン・接続情報は返さない。
 
-抽選・再抽選、金額確定、累積額取得、履歴削除、フロントエンドとの通信は後続グループで実装する。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
+金額確定、累積額取得、履歴削除は後続グループで実装する。フロントエンドのAPI接続はfrontend/README.mdを参照。ヘルスチェックは匿名の運用エンドポイントで、全業務APIを管理者限定にする設計とは区別する。
 
 ## ゲーム作成（G04）
 
@@ -45,6 +45,20 @@ rolling/tie/awaitingPaymentからcancelledへ遷移し、revisionを一つ増や
 G04と共通の`CommandStore`で成功記録を先に照会し、同じメソッド・正規化パス・空オブジェクト・元If-Matchなら200／本文／ETagを再生する。再生時は`Idempotency-Replayed: true`。新しいゲームを開始した後でも元の中止結果を返し、新しいcontrolを解除しない。異なる対象・If-Matchや別操作での同キー使用は409 `IDEMPOTENCY_KEY_REUSED`。
 
 記録がなければ不在／所有者外404、削除済み410、元If-Match不一致412、完了・中止済み409の順で判定する。game→round→control→game再確認で途中の更新を検知し、古い版へ自動追随しない。controlが欠落・別ゲーム・null、保存データ不整合は503で停止し、自動修復しない。内部ETag競合時は成功記録から再確認し、同キーは再生、ゲームが更新済みなら412。controlのみの競合は元のゲーム版を維持して最大3回バッチ、全体10秒以内で再試行する。コミット後の503通信断は成功記録で照合し、確認不能なら503として元のキー・If-Matchでの再送を維持する。金額保存APIとの競合確認はG08で追加する。
+
+## サイコロ・再抽選（G06）
+
+A06 `POST /api/v1/games/{gameId}/rolls` とA07 `POST /api/v1/games/{gameId}/rounds` は管理者認証、`Idempotency-Key`、単一の強いゲームETagの`If-Match`が必須。欠落428、不正ヘッダー・不正JSON・クエリ400、未知／重複フィールドや不正値422、JSON以外415、本文16 KiB超過413。ラウンド番号は正のJSON整数とする。
+
+A06は`{"roundNumber":1,"mode":"individual","participantId":"p001"}`または`{"roundNumber":1,"mode":"remaining"}`。rollingの現ラウンドだけを対象に、暗号学的乱数で1〜6の出目を確定する。一括では未抽選者だけを振り、確定済みの値と日時を保持する。未抽選者がいれば判定せず、全員完了時に最小値が一名ならawaitingPaymentと敗者、複数ならtieと最小同点者を保存する。最小以外の同点は再抽選しない。200で更新後のGameを返す。
+
+A07は`{"previousRoundNumber":1}`。tieかつ現番号一致のときだけ、参加者全員が未抽選の次ラウンドを作りrollingへ戻す。乱数は生成しない。旧ラウンドの全出目・日時・同点対象者を保持し、201 Gameと`Location: /api/v1/games/{gameId}`を返す。ラウンド回数について業務上の上限は設けず、全ラウンド取得APIは公開しない。
+
+同じ所有者の3操作を条件付きバッチにまとめる。A06はroundとgameを内部ETag条件付きReplace、commandをCreate。A07は新roundとcommandをCreate、gameを条件付きReplaceする。control・roster・累積額は変更しない。公開revisionを一回加算し、ETag・最新の`X-Read-Session`・`Idempotency-Replayed`を返す。
+
+成功commandを存在・削除・版・業務状態の検証より先に照会し、同じ要求は元のステータス・本文・ETag・Locationを再生する。別要求へのキー流用409、本人以外／不存在404、削除済み410、公開版不一致412、状態不正409、旧ラウンド409、抽選済み409、参加者外ID422。条件競合後も元If-Matchを保持し、競合した操作を新しい版へ自動適用しない。最大3試行・全体10秒。コミット後の応答断はcommandから確認し、確認不能なら503として同じ要求の再送を案内する。
+
+`Games/GameDice.cs`の`IDie`は判定テストでのみ差し替える。本番は`RandomNumberGenerator.GetInt32(1, 7)`を使い、乱数を指定できるHTTP入力や設定は設けない。オフラインで判定・部分抽選・混在操作・旧ラウンド拒否・競合・再送・失敗時の未更新・HTTP契約を検証する。`tests/GameDiceIntegrationTests.cs`には実バッチの同時操作、全件ロールバック、応答断、別クライアントへの読取セッション継承の3テストを追加。実行入口は`database/tests/Test-CosmosIntegration.ps1`で、HTTPS loopbackのエミュレーターだけを使う。端末にエミュレーターがないため、実DBの原子性・RU・実テナント疎通は未検証。
 
 ## ゲーム状態の取得（G03）
 
@@ -191,6 +205,10 @@ G07のmainマージ取り込み後：オフライン368テスト成功、Release
 
 G05追加後（G09マージ済みmainへリベース）：`pipeline/backend/Build.ps1`でオフライン430テスト成功（G05追加62件）、Release発行・発行物検査成功。未完了3状態、出目・敗者保持、ポインター解除、同キー再送・別キー競合・キー使い回し、読取中の更新、条件競合の打切り、応答断、DB更新前の失敗、新ゲーム開始後の過去キー再送、セッション継承、HTTPの入力・認証境界を確認。実FunctionsホストでCancelGameルートと関数への到達、認証なし401、health 200、OPTIONS 204、共通応答ヘッダーを確認。エミュレーター未導入のためG05追加3件を含む統合12件は理由付きスキップ。実Cosmosの原子性・ETag・セッション、Managed Identity/RBAC、実テナントのトークンによるA13成功疎通は未検証。保存／中止の競合確認はG08で追加する。
 
+2026年10月16日（G06）：G09（PR #6）マージ後のmainへリベースし、オフライン426テスト（G06追加58件）、Release発行・発行物検査に成功。Core Toolsの実FunctionsホストでRollDice/CreateRoundのPOSTルート、認証なし401、health 200、no-storeを確認。エミュレーター未導入のため統合12件（G06追加3件）は未実施（スキップ）。Azureへの配置・実データへの書込は実施していない。
+
+G05・フロントエンドAPI接続のmainマージ後：共通If-Match検証をG05の実装に統合。形式が正しい強いETagの不一致は412とし、抽選／再抽選と中止が競合した場合に双方の勝者を保持する4ケースを追加。`pipeline/backend/Build.ps1`でオフライン495テスト成功、Release発行・発行物検査成功。エミュレーター未導入のため統合15件は理由付きスキップ。
+
 ## ファイル構成
 
 - `Program.cs`：FunctionsホストとHTTP連携の初期化。
@@ -200,6 +218,7 @@ G05追加後（G09マージ済みmainへリベース）：`pipeline/backend/Buil
 - `Functions/GameReadFunctions.cs`：A04・A05。
 - `Functions/GameCreateFunction.cs`：A03。
 - `Functions/GameCancelFunction.cs`：A13。
+- `Functions/GameDiceFunctions.cs`／`Games/GameDice.cs`：A06・A07、サーバー乱数、条件付き更新と成功応答の再生。
 - `Functions/PaymentPreviewFunction.cs`：A08。
 - `Payments/`：金額入力の検証・負担額／負け額計算（G08で再利用）。
 - `Functions/HistoryReadFunctions.cs`／`History/`：A10・A15、カーソルと履歴応答。

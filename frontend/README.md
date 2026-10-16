@@ -50,7 +50,7 @@ pnpm preview
 
 - `index.html`：日本語ページの入口。
 - `src/main.ts`：起動入口。
-- `src/app.ts`：ページの組み立て、デモセッション、画面の破棄。
+- `src/app.ts`：ページの組み立て、ログイン状態の反映、画面の破棄。
 - `src/router.ts`：ハッシュルーティング。直接リンク・再読み込み・戻る／進むに対応。
 - `src/state.ts`：選択参加者・保存前の金額入力。ゲームの正本はサービスに置く。
 - `src/pages/`：ログイン、ホーム、参加者選択、サイコロ、金額入力／結果、履歴、履歴詳細／削除確認。
@@ -58,12 +58,45 @@ pnpm preview
 - `src/domain/`：型、敗者判定、金額入力検証・計算。
 - `src/services/game-service.ts`：画面が依存する操作のインターフェース。
 - `src/services/mock-service.ts`：ブラウザー内のデモ用ゲーム操作・保存。
-- `src/services/api-client.ts`：API通信の土台。現時点ではデモから呼ばない。
+- `src/services/api-client.ts`：API通信、トークン再取得、読取セッションの継承。
+- `src/services/api-service.ts`／`api-models.ts`：実API操作と画面用データへの検証・変換。
+- `src/services/runtime.ts`／`auth.ts`：モード選択、MSALログインと権限確認。
 - `src/styles/`：基本スタイルと部品スタイル。
 - `tsconfig.json`：TypeScript strictを有効化。
 - `pnpm-lock.yaml`：依存バージョンの固定。
 
-## 現在使える機能
+## 実APIへの接続
+
+G01〜G04、G07、G09がmainへ入った時点のAPIに接続する。`frontend/.env.example`を`.env.local`へコピーし、以下を設定して開発サーバーを起動し直す。
+
+```dotenv
+VITE_APP_MODE=api
+VITE_API_BASE_URL=https://<functions-host>/api/v1/
+VITE_ENTRA_TENANT_ID=<tenant-guid>
+VITE_ENTRA_SPA_CLIENT_ID=<spa-client-guid>
+VITE_ENTRA_API_SCOPE=api://<api-client-guid>/access_as_user
+```
+
+これらはビルド時に埋め込む公開識別子。アクセストークンやクライアントシークレットは指定しない。未指定のモードは`demo`。`api`で設定不足の場合は起動／ビルドエラーにし、デモへ切り替えない。ローカルAPIは`http://localhost:7071/api/v1/`も利用可能。
+
+SPA登録に`https://<画面ホスト>/redirect.html`と開発用`http://localhost:5173/redirect.html`をリダイレクトURIとして登録する。実際に使うポート・ホストと完全一致させる。MSAL v5の専用ページにはアプリ本体・ルーターを起動せず、COOPヘッダーも設定しない。[Microsoftのredirect bridge手順](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/redirect-bridge)に従う。FunctionsのCORSには画面のOriginを登録する。Entra設定の準備は[インフラ手順](../infra/scripts/README.md)を参照。
+
+| 画面操作 | 接続先・動作 |
+|---|---|
+| Microsoftログイン／再読み込み | MSALでAPI向けトークン取得後、A01 `GET /me`で管理者権限を確認 |
+| ホーム・ゲーム再開 | A04 `GET /games/active`、A05 `GET /games/{id}`で最新状態を表示 |
+| 参加者選択・作成 | A02 `GET /participants`、A03 `POST /games`。サーバーの名前・選択順を使用 |
+| 金額プレビュー | A08 `POST /games/{id}/payment-preview`。サーバーの計算結果を表示 |
+| 履歴一覧 | A10 `GET /games?limit=20`、さらに表示で不透明カーソルを送信 |
+| 履歴詳細 | A15 `GET /games/{id}/history-detail`。当時の名前と負担額を表示し、抽選記録は取得しない |
+
+G05/G06/G08/G10が未実装のため、APIモードでは中止・抽選／振り直し・金額保存・累積額・履歴削除を準備中と表示し、要求を送らない。作成後のゲームを最後まで進めるには後続APIが必要。保存済み／敗者確定済みのデータがある場合は履歴・プレビューを確認できる。デモの名前・履歴・金額を実API画面へ流用しない。
+
+作成前にUUIDキーと参加者順を`sessionStorage`へ記録する。通信断・503・再読み込み後は同じ本文・キーで再送し、成功後もA05で最新状態を取得する。未確認の作成があるときは参加者選択へ同じメンバーを復元し、異なる本文での送信を止める。ストレージへ要求を記録できない場合は作成要求を送らない。401では一度だけトークンを強制更新し、続く401や対話認証が必要な場合はログイン画面へ戻る。その他の更新の自動再送は行わない。
+
+API通信は直列化し、`X-Read-Session`を次要求へ継承する。端末の読取セッションと未確認作成要求はAPI URL・SPA登録・アカウントごとに分け、ログアウト時に読取セッションを削除する。ゲーム本体・履歴を独自の永続キャッシュには保存しない。トークンはMSALのsessionStorageで管理する。
+
+## デモで使える機能
 
 `pnpm dev` で起動し、「デモをはじめる」から操作する。
 
@@ -89,13 +122,12 @@ pnpm preview
 
 デモは通常の直列操作と版番号の照合に対応するが、複数タブの完全なトランザクション保証は持たない。本番の再送保証・排他制御はバックエンドの冪等性キー・ETag・DBトランザクションで行う。
 
-## API接続に向けて残る作業
+## 後続APIの接続で残る作業
 
-- Entra IDのアプリ設定、MSALによるログイン・API向けアクセストークン取得。
-- GameServiceのAPI版アダプター、DTO変換と検証、ページング。
+- G05/G06/G08/G10のマージ後、中止・抽選・確定・累積額・削除をAPIアダプターへ追加して画面の準備中表示を解除する。
 - API応答に参加実績を判別する項目を追加（累積0円だけでは未参加と区別できない）。
-- 更新要求のキー・本文・ETag保持、401再取得、412競合、成功応答再生後の最新状態確認。
-- APIの読取セッションの端末保持・更新要求の直列化。通信の土台はメモリー内で継承する。
+- 後続の更新要求で本文・キー・プレビュー／履歴詳細ETagを保持する。412では最新を確認し、元の操作を自動実行しない。
+- 実Entra・Functions・Cosmosを使った疎通、実端末でのログイン・再開確認。
 
 Three.js・GSAPはサイコロ画面で遅延読み込みする。現在の3Dチャンクは約600KB（gzip約160KB）で、Viteの500KB注意表示が出る。初期画面とは分離済みで、実端末での読込・描画速度の調整は今後行う。
 
@@ -114,3 +146,7 @@ Vitestで金額の境界、同点判定、個別→一括、保存復元、版�
 ## GitHub Actionsでの配置
 
 フロントエンド資産がmainに入ったときだけ、テスト・ビルド後に既存SWAへ自動配置する。PRでは検証のみ。配置Secretの登録と初回実行は [pipelineの手順](../pipeline/README.md) を参照。
+
+実API版をビルドする場合はGitHubのRepository Variablesへ上記5つの`VITE_*`を登録する。`VITE_APP_MODE`未設定時は従来どおりデモをビルドする。この変更ではAzure／Entra／GitHub Variablesの変更や配置は実行しない。
+
+2026年10月16日のAPI接続検証：型チェック、75テスト、本番ビルド成功。API契約に沿うHTTP応答で、認証・権限拒否、要求再送、セッション継承、履歴ページング、プレビューと未実装操作の抑止を検証。実テナント／実Cosmosへの疎通は未実施。ブラウザー確認は実行環境からローカル開発サーバーへ接続できず未実施。既存の3Dチャンクのサイズ警告は継続する。

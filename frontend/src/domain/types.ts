@@ -21,5 +21,7 @@ export interface Game {
   payment: Payment | null
 }
 export interface LossTotal extends Participant { totalYen: bigint; hasParticipated: boolean }
+export interface HistoryItem { id: string; createdAt: string; loser: Participant; participantCount: number; totalYen: number; lossYen: number }
+export interface HistoryPage { items: HistoryItem[]; nextCursor: string | null }
 export interface StoreDocument { version: 1; games: Game[] }
 export interface Page { element: HTMLElement; dispose?: () => void }

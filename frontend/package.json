@@ -16,11 +16,13 @@
   },
   "devDependencies": {
     "@types/three": "^0.186.0",
+    "jsdom": "^26.1.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.4"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.25.1",
     "gsap": "^3.15.0",
     "three": "^0.186.1"
   }

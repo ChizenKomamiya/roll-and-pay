@@ -209,6 +209,63 @@ public sealed class GameCancelTests
     }
 
     [Fact]
+    public async Task Update_during_round_read_is_rechecked_before_reporting_snapshot_inconsistency()
+    {
+        var store = Store(); var hook = new Mock<ICosmosPointReader>();
+        hook.Setup(s => s.ReadAsync<CommandDocument>(DataTests.Owner, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns((string owner, string id, string? session, CancellationToken token) => store.ReadAsync<CommandDocument>(owner, id, session, token));
+        hook.Setup(s => s.ReadAsync<GameDocument>(DataTests.Owner, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns((string owner, string id, string? session, CancellationToken token) => store.ReadAsync<GameDocument>(owner, id, session, token));
+        hook.Setup(s => s.ReadAsync<ControlDocument>(DataTests.Owner, "control", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns((string owner, string id, string? session, CancellationToken token) => store.ReadAsync<ControlDocument>(owner, id, session, token));
+        hook.Setup(s => s.ReadAsync<RoundDocument>(DataTests.Owner, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns((string owner, string id, string? session, CancellationToken token) =>
+            {
+                store.Put(GameFixture.Game("tie") with { Revision = 5 }, $"game:{GameFixture.Id:D}");
+                return Task.FromResult(new DocumentRead<RoundDocument>(GameFixture.Round("tie"), "0:-1#3", "round-etag"));
+            });
+        var error = await Assert.ThrowsAsync<ApiException>(() => new GameCanceller(hook.Object, store).CancelAsync(DataTests.Owner,
+            GameFixture.Id, Guid.NewGuid(), Hash(), Etag, GameReaderTests.Session(), default));
+        Assert.Equal(412, error.StatusCode); Assert.Equal(0, store.Writes);
+    }
+
+    [Fact]
+    public async Task Every_read_and_batch_inherit_the_latest_session_and_the_batch_uses_internal_etags()
+    {
+        var key = Guid.NewGuid(); var session = GameReaderTests.Session(); session.Accept("0:-1#1");
+        var reader = new Mock<ICosmosPointReader>(MockBehavior.Strict); var writer = new Mock<ICosmosBatchWriter>(MockBehavior.Strict);
+        reader.Setup(s => s.ReadAsync<CommandDocument>(DataTests.Owner, $"command:{key:D}", "0:-1#1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocumentRead<CommandDocument>(null, "0:-1#2", null));
+        reader.SetupSequence(s => s.ReadAsync<GameDocument>(DataTests.Owner, $"game:{GameFixture.Id:D}", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocumentRead<GameDocument>(GameFixture.Game(), "0:-1#3", "game-internal"))
+            .ReturnsAsync(new DocumentRead<GameDocument>(GameFixture.Game(), "0:-1#6", "game-internal"));
+        reader.Setup(s => s.ReadAsync<RoundDocument>(DataTests.Owner, $"round:{GameFixture.Id:D}:1", "0:-1#3", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocumentRead<RoundDocument>(GameFixture.Round(), "0:-1#4", "round-internal"));
+        reader.Setup(s => s.ReadAsync<ControlDocument>(DataTests.Owner, "control", "0:-1#4", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocumentRead<ControlDocument>(GameFixture.Control(GameFixture.Id), "0:-1#5", "control-internal"));
+        writer.Setup(s => s.WriteAsync(DataTests.Owner, It.Is<IReadOnlyList<BatchWrite>>(w =>
+                w.Count == 3 && w[0].Etag == "game-internal" && w[1].Etag == "control-internal" && w[2].Etag == null),
+                "0:-1#6", It.IsAny<CancellationToken>())).ReturnsAsync(new BatchResult(false, "0:-1#7"));
+        await new GameCanceller(reader.Object, writer.Object).CancelAsync(DataTests.Owner, GameFixture.Id, key, Hash(), Etag, session, default);
+        reader.Verify(s => s.ReadAsync<GameDocument>(DataTests.Owner, $"game:{GameFixture.Id:D}", "0:-1#2", It.IsAny<CancellationToken>()), Times.Once);
+        reader.Verify(s => s.ReadAsync<GameDocument>(DataTests.Owner, $"game:{GameFixture.Id:D}", "0:-1#5", It.IsAny<CancellationToken>()), Times.Once);
+        writer.VerifyAll(); Assert.Equal("0:-1#7", session.Token);
+    }
+
+    [Fact]
+    public async Task Failure_before_commit_has_no_success_record_and_same_key_can_be_retried()
+    {
+        var store = Store(); var key = Guid.NewGuid(); var writer = new Mock<ICosmosBatchWriter>();
+        writer.Setup(s => s.WriteAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<BatchWrite>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(CosmosErrors.Unavailable());
+        var error = await Assert.ThrowsAsync<ApiException>(() => new GameCanceller(store, writer.Object).CancelAsync(DataTests.Owner,
+            GameFixture.Id, key, Hash(), Etag, GameReaderTests.Session(), default));
+        Assert.Equal(503, error.StatusCode); Assert.Equal(4, ((GameDocument)store.Documents[$"game:{GameFixture.Id:D}"].Document).Revision);
+        Assert.DoesNotContain(store.Documents.Keys, k => k.StartsWith("command:"));
+        Assert.False((await Cancel(store, key)).Replayed);
+    }
+
+    [Fact]
     public async Task Request_cancellation_is_propagated_without_DB_access()
     {
         var store = Store(); using var cancellation = new CancellationTokenSource(); cancellation.Cancel();

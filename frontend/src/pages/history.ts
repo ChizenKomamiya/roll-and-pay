@@ -9,7 +9,7 @@ export function historyCard(game: Game) {
 }
 function summaryCard(item: HistoryItem) {
   const card = link('', gamePath(item.id, 'detail'), 'history-card')
-  card.append(el('div', '', el('span', 'muted', dateLabel(item.createdAt)), el('strong', '', `${item.loser.name}の負け額`), el('span', '', `会計 ${yen(item.totalYen)} · ${item.participantCount}人`)), el('div', 'history-right', el('strong', '', yen(item.lossYen)), el('span', '', '詳細 →')))
+  card.append(el('div', '', el('span', 'muted', dateLabel(item.createdAt)), el('strong', '', item.loser.name), el('span', '', `会計 ${yen(item.totalYen)} · ${item.participantCount}人`)), el('div', 'history-right', el('strong', '', yen(item.lossYen)), el('span', '', '詳細 →')))
   return card
 }
 

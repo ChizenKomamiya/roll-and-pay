@@ -16,6 +16,12 @@ name: Frontend
       - 'pipeline/frontend/**'
       - '.github/workflows/frontend.yml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target (production/all require main)
+        type: choice
+        options: [all, production, demo]
+        default: all
 
 permissions:
   contents: read
@@ -26,9 +32,17 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    name: Frontend (${{ matrix.target }})
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.target == 'demo')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    concurrency:
+      group: frontend-${{ matrix.target }}-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.target == 'demo' && '["demo"]' || inputs.target == 'production' && '["production"]' || '["production", "demo"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -42,27 +56,29 @@ jobs:
       - name: Install, test and build frontend
         shell: pwsh
         env:
-          VITE_APP_MODE: ${{ vars.VITE_APP_MODE || 'demo' }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
-          VITE_ENTRA_SPA_CLIENT_ID: ${{ vars.VITE_ENTRA_SPA_CLIENT_ID }}
-          VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE }}
+          VITE_APP_MODE: ${{ matrix.target == 'demo' && 'demo' || vars.VITE_APP_MODE || 'demo' }}
+          VITE_API_BASE_URL: ${{ matrix.target == 'production' && vars.VITE_API_BASE_URL || '' }}
+          VITE_ENTRA_TENANT_ID: ${{ matrix.target == 'production' && vars.VITE_ENTRA_TENANT_ID || '' }}
+          VITE_ENTRA_SPA_CLIENT_ID: ${{ matrix.target == 'production' && vars.VITE_ENTRA_SPA_CLIENT_ID || '' }}
+          VITE_ENTRA_API_SCOPE: ${{ matrix.target == 'production' && vars.VITE_ENTRA_API_SCOPE || '' }}
         run: ./pipeline/frontend/Build.ps1
       - name: Check deployment secret
         if: github.event_name != 'pull_request'
         shell: bash
         env:
-          DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          DEPLOYMENT_TOKEN: ${{ secrets[matrix.target == 'demo' && 'AZURE_STATIC_WEB_APPS_DEMO_API_TOKEN' || 'AZURE_STATIC_WEB_APPS_API_TOKEN'] }}
+          SECRET_NAME: ${{ matrix.target == 'demo' && 'AZURE_STATIC_WEB_APPS_DEMO_API_TOKEN' || 'AZURE_STATIC_WEB_APPS_API_TOKEN' }}
+          APP_NAME: ${{ matrix.target == 'demo' && 'swa-rollpay-demo' || 'swa-rollpay-prod' }}
         run: |
           if [ -z "$DEPLOYMENT_TOKEN" ]; then
-            echo '::error::Set the repository secret AZURE_STATIC_WEB_APPS_API_TOKEN for swa-rollpay-prod.'
+            echo "::error::Set the repository secret $SECRET_NAME for $APP_NAME."
             exit 1
           fi
-      - name: Deploy frontend to production
+      - name: Deploy frontend to ${{ matrix.target }}
         if: github.event_name != 'pull_request'
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ secrets[matrix.target == 'demo' && 'AZURE_STATIC_WEB_APPS_DEMO_API_TOKEN' || 'AZURE_STATIC_WEB_APPS_API_TOKEN'] }}
           action: upload
           app_location: frontend/dist
           api_location: ''

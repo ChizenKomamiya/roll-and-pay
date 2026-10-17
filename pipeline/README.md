@@ -35,6 +35,8 @@ Node.js 24とpnpm 11.25.0を使い、各matrixジョブで `install --frozen-loc
 
 デモ公開先：[Roll & Pay Demo](https://polite-pond-096faee00.5.azurestaticapps.net/)。本番の認証・API・DBを利用せず、仮データと閲覧者のブラウザー内の記録で動く。デザイン・操作確認向けで、複数人の記録共有には使わない。
 
+手動のデモ配置は実行ブランチを `production_branch` に指定して、デモSWAの固定URLへ配置する。配置Actionは、この入力を宣言する公式v1ブランチのコミットに固定している。配置後は返却されたURLにアクセスし、アプリのHTMLが配信されていることを確認する。配置がスキップされてURLが返らない場合も失敗とする。
+
 ## バックエンド：OIDCの準備
 
 Functionsの共有キー・公開プロファイルは使わず、Azure/loginのOIDCで既存Flex Consumptionのアプリへ配置する。GitHubのSecrets and variables → Actions → **Variables** に次を設定する。

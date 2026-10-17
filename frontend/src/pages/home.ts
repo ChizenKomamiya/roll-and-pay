@@ -13,9 +13,30 @@ export async function homePage(context: PageContext): Promise<Page> {
     }, 'text-button')))
   } else root.append(link('⚄ 新しいゲーム →', '/participants', 'start-card'))
   root.append(el('div', 'section-heading', el('h2', '', '累積負け額'), el('span', '', 'これまでの合計')))
-  const grid = el('div', 'card totals')
-  totals.forEach(total => { const amount = el('strong', '', total.hasParticipated === false ? '—' : yen(total.totalYen)); if (total.hasParticipated === false) amount.setAttribute('aria-label', '未参加'); grid.append(el('div', '', el('span', '', total.name, total.isActive === false ? '（現在は無効）' : ''), amount)) })
-  root.append(grid, el('p', 'hint', context.service.mode === 'api' ? '保存済みの負け額の合計です。削除した履歴は含みません。' : '— は未参加、0円は参加済みで負け額が0円です。'))
+  const ranking = el('table', 'loss-ranking')
+  ranking.setAttribute('aria-label', '累積負け額ランキング')
+  const headings = ['順位', '名前', '金額'].map(label => {
+    const heading = el('th', '', label)
+    heading.scope = 'col'
+    return heading
+  })
+  const rows = el('tbody')
+  const sorted = [...totals].sort((a, b) => {
+    if ((a.hasParticipated === false) !== (b.hasParticipated === false)) return a.hasParticipated === false ? 1 : -1
+    return a.totalYen > b.totalYen ? -1 : a.totalYen < b.totalYen ? 1 : 0
+  })
+  let rank = 0
+  sorted.forEach((total, index) => {
+    const unplayed = total.hasParticipated === false
+    if (!unplayed && (index === 0 || total.totalYen !== sorted[index - 1].totalYen)) rank = index + 1
+    const position = el('td', 'loss-rank', unplayed ? '' : `${rank}位`)
+    if (unplayed) position.setAttribute('aria-label', '順位なし')
+    const amount = el('strong', '', unplayed ? '—' : yen(total.totalYen))
+    if (unplayed) amount.setAttribute('aria-label', '未参加')
+    rows.append(el('tr', '', position, el('td', 'loss-name', total.name, total.isActive === false ? '（現在は無効）' : ''), el('td', 'loss-amount', amount)))
+  })
+  ranking.append(el('thead', '', el('tr', '', ...headings)), rows)
+  root.append(el('div', 'card totals', ranking), el('p', 'hint', 'ハイフンは参加実績なし'))
   if (context.service.mode === 'api') root.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))
   root.append(link('負け額の履歴を見る →', '/history'))
   const options = el('details', 'demo-options', el('summary', '', 'デモデータの管理'))

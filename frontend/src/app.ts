@@ -36,7 +36,7 @@ export function startApp(root: HTMLElement, runtime: AppRuntime) {
     if (!signedIn && route.page !== 'login') { navigate('/login', true); return }
     if (signedIn && route.page === 'login') { navigate('/home', true); return }
     const service = runtime.service
-    const shell = el('div', 'app-shell', appHeader(signedIn, logout), el('div', 'demo-banner', runtime.mode === 'demo' ? 'デモモード · 記録はこのブラウザーに保存' : 'API接続モード · 記録はサーバーで管理'))
+    const shell = el('div', 'app-shell', appHeader(signedIn, logout), runtime.mode === 'demo' ? el('div', 'demo-banner', 'デモモード · 記録はこのブラウザーに保存') : null)
     const main = el('main'); shell.append(main)
     // Keep the existing page height while refreshing. A short loading placeholder
     // would make the browser clamp scrollY to zero before the new page is ready.

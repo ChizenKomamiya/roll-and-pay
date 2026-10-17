@@ -15,10 +15,17 @@
 .start-card { background: var(--green); border-radius: 18px; padding: 28px 20px; display: block; color: white; margin: 25px 0 30px; font-size: 21px; font-weight: 700; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 25px 0 12px; }
 .section-heading > span { font-size: 11px; color: var(--muted); }
-.totals { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 16px; margin: 0; }
-.totals > div { display: grid; gap: 5px; min-width: 0; }
-.totals span { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.totals strong { font-size: clamp(16px, 5vw, 24px); line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.totals { margin: 0; padding: 8px 16px; }
+.loss-ranking { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.loss-ranking th { font-size: 11px; font-weight: 400; color: var(--muted); text-align: left; }
+.loss-ranking th:first-child { width: 3em; }
+.loss-ranking th:last-child { width: 53%; text-align: right; }
+.loss-ranking th, .loss-ranking td { padding: 12px 0; }
+.loss-ranking tbody tr + tr { border-top: 1px solid var(--line); }
+.loss-rank { font-size: 12px; color: var(--green); font-weight: 700; overflow-wrap: anywhere; }
+.loss-ranking .loss-name { font-size: 12px; overflow-wrap: anywhere; padding-right: 8px; }
+.loss-amount { text-align: right; }
+.loss-amount strong { font-size: clamp(16px, 4.5vw, 20px); line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .members { display: grid; gap: 10px; margin-top: 24px; }
 .members label { display: flex; gap: 14px; align-items: center; background: white; border: 1px solid var(--line); border-radius: 14px; padding: 13px 16px; cursor: pointer; }
 .members label:has(input:checked) { border-color: #80a66a; background: #f3f8e9; }
@@ -30,13 +37,12 @@
 .dice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
 .dice-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 8px; background: white; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); min-height: 182px; min-width: 0; }
 .dice-card:disabled { opacity: 1; }
-.dice-card > span { font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.dice-card > span { font-weight: 700; font-size: 24px; overflow-wrap: anywhere; }
 .dice-card small { font-size: 11px; color: var(--muted); }
 .dice-view { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
 .dice-view canvas { display: block; }
 .die-fallback { position: absolute; display: grid; place-items: center; width: 74px; height: 74px; border-radius: 16px; border: 1px solid #dbe4cf; background: #f6f8f0; color: var(--green); font-size: 36px; box-shadow: 4px 4px 0 #e4e8df; }
 .loser { background: #fff6e6; border-color: #e4bd78; }
-.dice-card em { font-style: normal; font-size: 10px; background: #eacb8a; padding: 2px 5px; border-radius: 4px; margin-left: 4px; }
 .notice { padding: 18px; background: var(--orange); border: 1px solid #eed4a6; border-radius: 13px; margin: 20px 0; color: #805820; }
 .notice p { font-size: 12px; margin-bottom: 0; }
 .notice .button { margin-bottom: 4px; }

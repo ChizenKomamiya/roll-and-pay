@@ -18,7 +18,7 @@ export async function historyDetailPage(context: PageContext, id: string, deleti
       navigate('/history/deleted', true)
     }) }, 'button danger'), link('キャンセル', gamePath(id, 'detail')))
   } else {
-    root.append(link('← 負け額の履歴', '/history', 'back'), title('LOSS HISTORY / DETAIL', `${loser.name}の負け額の記録`, `${dateLabel(game.createdAt)} / ${game.participants.length}人`), paymentSummary(game, game.payment), el('p', 'hint', `千円単位の基準負担額：${yen(game.payment.baseYen)} / 金額登録：${dateLabel(game.completedAt!)}`))
+    root.append(link('← 負け額の履歴', '/history', 'back'), title('LOSS HISTORY / DETAIL', '支払い金額の詳細', `${dateLabel(game.createdAt)} / ${game.participants.length}人`), paymentSummary(game, game.payment), el('p', 'hint', `千円単位の基準負担額：${yen(game.payment.baseYen)} / 金額登録：${dateLabel(game.completedAt!)}`))
     root.append(link('この履歴を削除', gamePath(id, 'delete'), 'button danger'))
   }
   if (context.service.mode === 'api') root.append(button('最新の状態を確認', () => context.refresh(), 'button secondary'))

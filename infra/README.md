@@ -10,6 +10,7 @@ GitHub Actionsの資産別ワークフローは [pipelineの手順](../pipeline/
 |---|---|
 | `main.bicep` | サブスクリプションスコープの入口。リソースグループを作成 |
 | `resources.bicep` | SWA、Functions、Storage、DB、監視、予算 |
+| `demo.bicep` | 同じRGに置く公開デモ専用のSWA Free。単独配置にも対応 |
 | `data-access.bicep` | Functions作成後のManaged Identityにデータアクセス権限を付与 |
 | `../database/container-definition.json` | DB・コンテナー名、パーティション、インデックスの共通定義 |
 | `prod.bicepparam` | 本番設定。実ID・通知先を環境変数から取得 |
@@ -19,6 +20,7 @@ GitHub Actionsの資産別ワークフローは [pipelineの手順](../pipeline/
 
 - 本番1環境、基本リージョンJapan East。SWAのリソース配置先のみEast Asia、画面資材はグローバル配信。
 - SWA Free。Functionsとのバックエンド関連付けは行わず、SWAの既定ホスト名をFunctionsのCORS許可Originに設定。プレビュー環境は無効。
+- 公開デモ用の `swa-rollpay-demo` も同じRG内に作成する。Free、East Asia、プレビュー無効。タグは本番と共通で `purpose: demo` を追加する。デモURLをAPIのCORSやEntraのリダイレクトURIには追加しない。
 - Functions Flex Consumption、Linux、.NET 10 Isolated、2,048 MB、Always readyなし、最大40インスタンス。
 - Standard LRS Storage。匿名Blob公開・共有キー認証・FTP・SCM基本認証を無効化。
 - Cosmos DB for NoSQL Serverless、単一リージョン、Session整合性、継続的バックアップ7日、キー認証なし。
@@ -31,6 +33,15 @@ GitHub Actionsの資産別ワークフローは [pipelineの手順](../pipeline/
 既存Cosmos DBアカウントにDB・コンテナー定義だけを反映する場合は、[databaseのスクリプト](../database/README.md)を使用できる。両方のBicepが同じJSON定義を参照する。インフラ配置とDB単独反映は同時に実行しない。
 
 ## パラメーター
+
+デモSWAだけを既存RGへ追加する場合は、全本番リソースを再配置せず次を実行できる。全体の `main.bicep` からも同じ `demo.bicep` を呼び出す。
+
+```powershell
+az deployment group what-if --resource-group rg-rollpay-prod-jpe --name rollpay-demo-site --template-file infra/demo.bicep
+az deployment group create --resource-group rg-rollpay-prod-jpe --name rollpay-demo-site --template-file infra/demo.bicep --mode Incremental
+```
+
+出力 `staticWebAppUrl` がデモの公開先。全体配置の出力では `demoStaticWebAppName` / `demoStaticWebAppUrl`。画面の配置とSecretは [pipelineの手順](../pipeline/README.md) を参照。
 
 | パラメーター | 指定方法・初期値 |
 |---|---|

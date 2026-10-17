@@ -1,4 +1,4 @@
-# Roll & Pay — フロントエンド
+# サイコロは絶対 — フロントエンド
 
 Vite + Vanilla TypeScriptで初期化。React等のUIフレームワークは使用しない。
 
@@ -152,9 +152,9 @@ Vitestで金額の境界、同点判定、個別→一括、保存復元、版�
 
 ## GitHub Actionsでの配置
 
-フロントエンド資産がmainに入ったときだけ、テスト・ビルド後に既存SWAへ自動配置する。PRでは検証のみ。配置Secretの登録と初回実行は [pipelineの手順](../pipeline/README.md) を参照。
+フロントエンド資産がmainに入ったとき、本番・デモを独立してテスト・ビルドし、各SWAへ自動配置する。PRでは両モードを検証する。手動実行の `target=demo` ではデモのみを配置できる。配置Secretの登録と初回実行は [pipelineの手順](../pipeline/README.md) を参照。
 
-実API版をビルドする場合はGitHubのRepository Variablesへ上記5つの`VITE_*`を登録する。`VITE_APP_MODE`未設定時は従来どおりデモをビルドする。この変更ではAzure／Entra／GitHub Variablesの変更や配置は実行しない。
+本番を実API版でビルドする場合はGitHubのRepository Variablesへ上記5つの`VITE_*`を登録する。本番側の`VITE_APP_MODE`未設定時は従来どおりデモをビルドする。デモ側は常に`VITE_APP_MODE=demo`を指定し、API／Entraの環境変数は空にする。本番とURL・配置Secret・ブラウザー内の保存先Originを分離する。
 
 2026年10月16日のAPI接続検証：型チェック、75テスト、本番ビルド成功。API契約に沿うHTTP応答で、認証・権限拒否、要求再送、セッション継承、履歴ページング、プレビューと未実装操作の抑止を検証。実テナント／実Cosmosへの疎通は未実施。ブラウザー確認は実行環境からローカル開発サーバーへ接続できず未実施。既存の3Dチャンクのサイズ警告は継続する。
 

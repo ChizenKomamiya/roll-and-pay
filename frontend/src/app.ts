@@ -47,7 +47,7 @@ export function startApp(root: HTMLElement, runtime: AppRuntime) {
       if (keepViewport) root.replaceChildren(shell)
       mountedHash = location.hash
       const heading = main.querySelector('h1')
-      document.title = `Roll & Pay${heading ? ` | ${heading.textContent}` : ''}`
+      document.title = 'IBN | サイコロは絶対'
       if (keepViewport) {
         const focusTarget = focusKey ? [...main.querySelectorAll<HTMLElement>('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey && !node.matches(':disabled') && !node.hidden) : null
         // A rolled die becomes disabled. Focus the current result status instead,

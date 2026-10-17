@@ -6,7 +6,7 @@ GitHub Actionsの入口はルートの `.github/workflows/`。この `pipeline/`
 
 | ワークフロー | 対象変更 | mainへのpush | PR | 手動実行 |
 |---|---|---|---|---|
-| [Frontend](../.github/workflows/frontend.yml) | `frontend/**`、`pipeline/frontend/**`、自身のYAML | テスト・ビルド後、SWA本番へ自動配置 | テスト・ビルドのみ | mainから再配置 |
+| [Frontend](../.github/workflows/frontend.yml) | `frontend/**`、`pipeline/frontend/**`、自身のYAML | 本番・デモを別ビルドして各SWAへ自動配置 | 両モードのテスト・ビルドのみ | `target`で配置先を選択 |
 | [Backend](../.github/workflows/backend.yml) | `backend/**`、`pipeline/backend/**`、自身のYAML | テスト・発行後、既存Functionsへ自動配置 | テスト・発行確認 | mainから再配置 |
 | [Infrastructure](../.github/workflows/infrastructure.yml) | `infra/**`、共通DB定義、`pipeline/infrastructure/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
 | [Database](../.github/workflows/database.yml) | `database/**`、`pipeline/database/**`、自身のYAML | オフラインテスト・Bicepコンパイルのみ | 同左 | `validate` / `what-if` / `apply` |
@@ -16,22 +16,26 @@ GitHub Actionsの入口はルートの `.github/workflows/`。この `pipeline/`
 
 `database/container-definition.json` は両方のBicepが参照するため、InfrastructureとDatabaseの検証が両方動く。自動でAzureへ反映はしない。
 
-手動のクラウド操作はmainのみ。フロントとバックの自動実行は資産ごとに直列化し、別資産を待たせない。インフラ・DBの手動Azure操作は共通のconcurrency groupで直列化する。GitHub外の手動配置までは排他しない。
+手動のクラウド操作は原則mainのみ。例外としてFrontendの `target=demo` は作業ブランチからも実行でき、本番の配置ジョブは作らない。フロントとバックの自動実行は資産ごとに直列化し、別資産を待たせない。インフラ・DBの手動Azure操作は共通のconcurrency groupで直列化する。GitHub外の手動配置までは排他しない。
 
 ## フロントエンド：最初に設定するもの
 
-対象：`rg-rollpay-prod-jpe` の `swa-rollpay-prod`。
+対象：`rg-rollpay-prod-jpe` の `swa-rollpay-prod` と `swa-rollpay-demo`（どちらもFree）。
 
 1. Azure Portalで当該Static Web Appの「デプロイトークンの管理」を開く。
 2. GitHubの [リポジトリのActions Secrets設定](https://github.com/ChizenKomamiya/roll-and-pay/settings/secrets/actions) → **New repository secret**。
-3. 名前を **`AZURE_STATIC_WEB_APPS_API_TOKEN`**、値をこのSWAの配置トークンとして保存する。
-4. GitHubの **Actions → Frontend → Run workflow → main** で初回配置する。その後は対象パスの変更をmainへpushすると自動配置される。
+3. 本番は **`AZURE_STATIC_WEB_APPS_API_TOKEN`**、デモは **`AZURE_STATIC_WEB_APPS_DEMO_API_TOKEN`** に各SWAの配置トークンを保存する。別のSWAのトークンを使い回さない。
+4. GitHubの **Actions → Frontend → Run workflow → main → target** を選択する。`all`（既定）は両方、`production`は本番のみ、`demo`はデモのみ。デモのみは作業ブランチからも実行できる。その後は対象パスの変更をmainへpushすると両方へ自動配置される。
 
 トークンはチャット・ソース・コミット・コマンドラインに貼らない。既存の同名Secretが正しいSWAを指していればそのまま使える。Secretはリソース作成用のAzure資格情報とは別。
 
-Node.js 24とpnpm 11.25.0を使い、`install --frozen-lockfile` → 48件の現行テスト → 型チェック・本番ビルド → `frontend/dist` だけを配置する。Azure側では再ビルドせず、APIも同梱しない。プレビュー環境は作らずmainを本番へ配置する。
+Node.js 24とpnpm 11.25.0を使い、各matrixジョブで `install --frozen-lockfile` → テスト → 型チェック・ビルド → `frontend/dist` だけを配置する。本番はRepository Variables、デモは `VITE_APP_MODE=demo` 固定・API／Entra設定なし。本番とデモは独立したrunnerを使い、一方の失敗で他方を中止しない。Azure側では再ビルドせず、APIも同梱しない。PRでは配置Secretを使わず、どちらも配置しない。
 
-公開先：[Roll & Pay](https://jolly-river-0ce97e200.4.azurestaticapps.net/)。現時点はデモモードで、記録は閲覧者のブラウザー内に保存される。Microsoftログイン・業務API接続は未実装。
+本番公開先：[Roll & Pay](https://jolly-river-0ce97e200.4.azurestaticapps.net/)。API接続には [frontendの公開設定](../frontend/README.md) が必要。設定が未登録なら従来どおりデモになる。
+
+デモ公開先：[Roll & Pay Demo](https://polite-pond-096faee00.5.azurestaticapps.net/)。本番の認証・API・DBを利用せず、仮データと閲覧者のブラウザー内の記録で動く。デザイン・操作確認向けで、複数人の記録共有には使わない。
+
+手動のデモ配置は実行ブランチを `production_branch` に指定して、デモSWAの固定URLへ配置する。配置Actionは、この入力を宣言する公式v1ブランチのコミットに固定している。配置後は返却されたURLにアクセスし、アプリのHTMLが配信されていることを確認する。配置がスキップされてURLが返らない場合も失敗とする。
 
 ## バックエンド：OIDCの準備
 

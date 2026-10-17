@@ -35,6 +35,15 @@ resource staticSite 'Microsoft.Web/staticSites@2024-11-01' = {
   }
 }
 
+module demo './demo.bicep' = {
+  name: 'rollpay-demo-site'
+  params: {
+    appName: appName
+    staticWebAppLocation: staticWebAppLocation
+    tags: union(tags, { purpose: 'demo' })
+  }
+}
+
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'law-${appName}-prod-jpe'
   location: location
@@ -309,6 +318,8 @@ output functionAppName string = functionApp.name
 output apiBaseUrl string = 'https://${functionApp.properties.defaultHostName}/api/v1'
 output staticWebAppName string = staticSite.name
 output staticWebAppUrl string = 'https://${staticSite.properties.defaultHostname}'
+output demoStaticWebAppName string = demo.outputs.staticWebAppName
+output demoStaticWebAppUrl string = demo.outputs.staticWebAppUrl
 output functionPrincipalId string = functionApp.identity.principalId
 output cosmosAccountName string = cosmos.name
 output cosmosEndpoint string = cosmos.properties.documentEndpoint

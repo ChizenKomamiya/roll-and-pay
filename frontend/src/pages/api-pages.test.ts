@@ -81,7 +81,7 @@ describe('API接続時の画面', () => {
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
     page.dispose?.()
     const refreshed = await dicePage(context, gameId)
-    expect(refreshed.element.textContent).toContain('ROUND 4')
+    expect(refreshed.element.querySelector('[role=status]')!.textContent).toContain('まだ振っていません')
     expect([...refreshed.element.querySelectorAll<HTMLButtonElement>('.dice-card')].every(button => !button.disabled)).toBe(true)
     expect(refreshed.element.textContent).toContain('全員まとめて振る')
     refreshed.dispose?.()

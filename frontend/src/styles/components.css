@@ -30,13 +30,12 @@
 .dice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
 .dice-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 8px; background: white; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); min-height: 182px; min-width: 0; }
 .dice-card:disabled { opacity: 1; }
-.dice-card > span { font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.dice-card > span { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
 .dice-card small { font-size: 11px; color: var(--muted); }
 .dice-view { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
 .dice-view canvas { display: block; }
 .die-fallback { position: absolute; display: grid; place-items: center; width: 74px; height: 74px; border-radius: 16px; border: 1px solid #dbe4cf; background: #f6f8f0; color: var(--green); font-size: 36px; box-shadow: 4px 4px 0 #e4e8df; }
 .loser { background: #fff6e6; border-color: #e4bd78; }
-.dice-card em { font-style: normal; font-size: 10px; background: #eacb8a; padding: 2px 5px; border-radius: 4px; margin-left: 4px; }
 .notice { padding: 18px; background: var(--orange); border: 1px solid #eed4a6; border-radius: 13px; margin: 20px 0; color: #805820; }
 .notice p { font-size: 12px; margin-bottom: 0; }
 .notice .button { margin-bottom: 4px; }

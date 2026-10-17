@@ -1,4 +1,4 @@
-# Roll & Pay — フロントエンド
+# サイコロは絶対 — フロントエンド
 
 Vite + Vanilla TypeScriptで初期化。React等のUIフレームワークは使用しない。
 

@@ -15,7 +15,7 @@ export async function paymentPage(context: PageContext, id: string, saved = fals
   const root = el('section', 'screen')
   if (saved) {
     root.append(el('div', 'saved-heading', el('span', '', '✓ 保存済み'), link('ホーム →', '/home', '')))
-    const share = el('div', 'share-card', title('ROLL & PAY / RESULT', `今回の端数は、${loser.name}。`, `${dateLabel(game.createdAt)} / ${game.participants.length}人`), paymentSummary(game, game.payment!, { showRolls: true }))
+    const share = el('div', 'share-card', title('サイコロは絶対 / RESULT', `今回の端数は、${loser.name}。`, `${dateLabel(game.createdAt)} / ${game.participants.length}人`), paymentSummary(game, game.payment!, { showRolls: true }))
     root.append(share, el('p', 'hint', '結果部分をスクリーンショットで共有できます。'), link('履歴詳細を見る →', gamePath(id, 'detail')))
     return { element: root }
   }

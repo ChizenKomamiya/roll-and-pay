@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roll &amp; Pay | 画面モックアップ</title>
+<title>IBN | サイコロは絶対</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <aside class="guide">
-  <a class="brand" href="#home"><span class="brand-icon">⚄</span> Roll &amp; Pay</a>
+  <a class="brand" href="#home"><span class="brand-icon">⚄</span> サイコロは絶対</a>
   <p class="eyebrow">BASIC DESIGN / 01</p>
   <h1>画面モックアップ</h1>
   <p>一台のスマートフォンで、<br>今日の端数を決める。</p>
@@ -25,7 +25,7 @@
 <main>
   <div class="preview-label"><span>HTML MOCKUP</span><span>スマートフォン優先</span></div>
   <div class="phone">
-    <header class="app-header"><a href="#home">⚄ <strong>Roll &amp; Pay</strong></a><span class="badge">MOCK</span></header>
+    <header class="app-header"><a href="#home">⚄ <strong>サイコロは絶対</strong></a><span class="badge">MOCK</span></header>
     <section id="login" class="screen">
       <div class="login-hero"><div class="hero-dice">⚄</div><p class="eyebrow">LET THE DICE DECIDE.</p><h2>端数は、<br>サイコロにおまかせ。</h2><p>小銭のやり取りをなくして、<br>食事のあとの会計をすっきり。</p></div>
       <div class="card"><h3>管理者としてログイン</h3><p class="muted">参加者のアカウントは不要です。<br>ログインした一台をみんなで使います。</p><a class="button primary" href="#home"><span class="ms-icon" aria-hidden="true">▦</span> Microsoftでログイン</a></div>
@@ -101,7 +101,7 @@
     </section>
     <section id="saved" class="screen">
       <div class="saved-heading"><span>✓ 保存しました</span><a href="#home">ホーム →</a></div>
-      <div class="share-card"><p class="eyebrow">ROLL &amp; PAY / RESULT</p><h2>今日の端数は、ゆう。</h2><p class="muted">2026.10.14 · 19:30 / 4人</p><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>ゆうの負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき <small>出目4</small></span><strong>3,000円</strong></div><div class="pay-row"><span>はる <small>出目6</small></span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>出目2 · 敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん <small>出目5</small></span><strong>3,000円</strong></div><p class="settlement">他の3人 → ゆうに各3,000円<br>ゆうが会計をまとめて支払います。</p></div>
+      <div class="share-card"><p class="eyebrow">サイコロは絶対 / RESULT</p><h2>今日の端数は、ゆう。</h2><p class="muted">2026.10.14 · 19:30 / 4人</p><div class="result-top"><span>会計総額</span><strong>13,800<small>円</small></strong></div><div class="loss-highlight"><span>ゆうの負け額</span><strong>1,800<small>円</small></strong></div><div class="pay-row"><span>あき <small>出目4</small></span><strong>3,000円</strong></div><div class="pay-row"><span>はる <small>出目6</small></span><strong>3,000円</strong></div><div class="pay-row accent"><span>ゆう <small>出目2 · 敗者</small></span><strong>4,800円</strong></div><div class="pay-row"><span>りん <small>出目5</small></span><strong>3,000円</strong></div><p class="settlement">他の3人 → ゆうに各3,000円<br>ゆうが会計をまとめて支払います。</p></div>
       <p class="hint">結果部分をスクリーンショットで共有できます。</p><a href="#history" class="button secondary">履歴詳細を見る →</a>
       <details class="annotation"><summary>画面・操作の説明</summary><p>S05 / F09・F12：保存完了後の共有用表示です。実データは保存していません。画像保存・共有ボタンの採用は未決定です。</p></details>
     </section>
@@ -201,7 +201,7 @@ function showScreen() {
   document.querySelectorAll('.screen').forEach(el => { el.hidden = el.id !== active; });
   const group = active.startsWith('dice') ? 'dice' : active.startsWith('history') ? 'history-list' : ['result','saved'].includes(active) ? 'payment' : active;
   document.querySelectorAll('nav a').forEach(el => { if (el.hash === '#' + group) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  document.title = 'Roll & Pay | ' + document.querySelector('#' + active + ' h2').textContent;
+  document.title = 'IBN | サイコロは絶対';
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', showScreen);
